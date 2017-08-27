@@ -94,6 +94,19 @@ uct_ud_verbs_ep_tx_inlv(uct_ud_verbs_iface_t *iface, uct_ud_verbs_ep_t *ep,
     --iface->super.tx.available;
 }
 
+#include <unistd.h>
+
+static void write_log_message(char *msg)
+{
+    char hname[1024], fname[1024];
+    gethostname(hname, 1023);
+    sprintf(fname,"/home/artemp/SLURM/2017_08_21_early_wareup/scripts/coll_perf/%s.log",hname);
+    FILE *fp = fopen(fname, "a");
+    fprintf(fp,"%s\n", msg);
+    fclose(fp);
+}
+
+
 static inline void
 uct_ud_verbs_ep_tx_skb(uct_ud_verbs_iface_t *iface,
                           uct_ud_verbs_ep_t *ep, uct_ud_send_skb_t *skb, unsigned flags)
@@ -104,6 +117,24 @@ uct_ud_verbs_ep_tx_skb(uct_ud_verbs_iface_t *iface,
     iface->tx.sge[0].lkey   = skb->lkey;
     iface->tx.sge[0].length = skb->len;
     iface->tx.sge[0].addr   = (uintptr_t)skb->neth;
+
+{
+    char msg[10*1024];
+    int i;
+    sprintf(msg, "send(%p:%d): fl=%x\n\t", skb, (int)skb->len, flags);
+    for(i=0; i<skb->len; i++){
+	sprintf(msg,"%s 0x%hhx,", msg, ((char*)skb->neth)[i]);
+    }
+    write_log_message(msg);
+}
+
+if(skb->len >70){
+static volatile int delay = 0;
+while(delay){
+    sleep(1);
+}
+}
+
     uct_ud_verbs_iface_fill_tx_wr(iface, ep, &iface->tx.wr_skb, flags);
     UCT_UD_EP_HOOK_CALL_TX(&ep->super, (uct_ud_neth_t *)iface->tx.sge[0].addr);
     ret = ibv_post_send(iface->super.qp, &iface->tx.wr_skb, &bad_wr);
@@ -124,6 +155,7 @@ static void uct_ud_verbs_ep_tx_ctl_skb(uct_ud_ep_t *ud_ep, uct_ud_send_skb_t *sk
     if (skb->len < iface->super.config.max_inline) {
         flags = IBV_SEND_INLINE;
     }
+
     if (solicited) {
         flags |= IBV_SEND_SOLICITED;
     }
@@ -178,6 +210,7 @@ static ssize_t uct_ud_verbs_ep_am_bcopy(uct_ep_h tl_ep, uint8_t id,
     uct_ud_send_skb_t *skb;
     ucs_status_t status;
     size_t length;
+    
 
     uct_ud_enter(&iface->super);
     uct_ud_iface_progress_pending_tx(&iface->super);
@@ -190,7 +223,12 @@ static ssize_t uct_ud_verbs_ep_am_bcopy(uct_ep_h tl_ep, uint8_t id,
     length = uct_ud_skb_bcopy(skb, pack_cb, arg);
     UCT_UD_CHECK_BCOPY_LENGTH(&iface->super, length);
 
-    uct_ud_verbs_ep_tx_skb(iface, ep, skb, 0);
+/*
+    if (skb->len < iface->super.config.max_inline) {
+        flags = IBV_SEND_INLINE;
+    }
+*/
+    uct_ud_verbs_ep_tx_skb(iface, ep, skb, flags);
     uct_ud_iface_complete_tx_skb(&iface->super, &ep->super, skb);
     UCT_TL_EP_STAT_OP(&ep->super.super, AM, BCOPY, length);
     uct_ud_leave(&iface->super);

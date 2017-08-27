@@ -13,6 +13,20 @@
 #include <ucs/debug/memtrack.h>
 #include <ucs/debug/log.h>
 
+#include <unistd.h>
+
+static void write_log_message(char *msg)
+{
+    char hname[1024], fname[1024];
+    gethostname(hname, 1023);
+    sprintf(fname,"/home/artemp/SLURM/2017_08_21_early_wareup/scripts/coll_perf/%s.log",hname);
+    FILE *fp = fopen(fname, "a");
+    fprintf(fp,"%s\n", msg);
+    fclose(fp);
+}
+
+
+
 static void uct_ud_peer_name(uct_ud_peer_name_t *peer)
 {
     gethostname(peer->name, sizeof(peer->name));
@@ -351,6 +365,7 @@ ucs_status_t uct_ud_ep_connect_to_ep(uct_ud_ep_t *ep,
     return UCS_OK;
 }
 
+
 static UCS_F_ALWAYS_INLINE void
 uct_ud_ep_process_ack(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
                       uct_ud_psn_t ack_psn, int is_async)
@@ -366,6 +381,18 @@ uct_ud_ep_process_ack(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
     /* Release acknowledged skb's */
     ucs_queue_for_each_extract(skb, &ep->tx.window, queue,
                                UCT_UD_PSN_COMPARE(skb->neth->psn, <=, ack_psn)) {
+
+{
+    char msg[10*1024];
+    int i;
+    sprintf(msg, "send_done(%p:%d): ", skb, (int)skb->len);
+    for(i=0; i<skb->len; i++){
+	sprintf(msg,"%s 0x%hhx,", msg, ((char*)skb->neth)[i]);
+    }
+    write_log_message(msg);
+}
+
+
         if (ucs_unlikely(skb->flags & UCT_UD_SEND_SKB_FLAG_COMP)) {
             cdesc = uct_ud_comp_desc(skb);
             if (ucs_unlikely(is_async)) {
@@ -553,6 +580,17 @@ void uct_ud_ep_process_rx(uct_ud_iface_t *iface, uct_ud_neth_t *neth, unsigned b
     uint32_t is_am, am_id;
     uct_ud_ep_t *ep = 0; /* todo: check why gcc complaints about uninitialized var */
     ucs_frag_list_ooo_type_t ooo_type;
+
+{
+    char msg[10*1024];
+    int i;
+    sprintf(msg, "recv(%d): ", (int)byte_len);
+    for(i=0; i<byte_len; i++){
+	sprintf(msg,"%s 0x%hhx,", msg, ((char*)neth)[i]);
+    }
+    write_log_message(msg);
+}
+
 
     UCT_UD_IFACE_HOOK_CALL_RX(iface, neth, byte_len);
 

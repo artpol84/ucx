@@ -228,6 +228,13 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
 
     UCS_ASYNC_BLOCK(&worker->async);
 
+{
+    volatile int delay = 0;
+    while( delay ){
+	sleep(1);
+    }
+}
+
     if (params->field_mask & UCP_EP_PARAM_FIELD_REMOTE_ADDRESS) {
         status = ucp_address_unpack(params->address, &dest_uuid, peer_name, sizeof(peer_name),
                                     &address_count, &address_list);
