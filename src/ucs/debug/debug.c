@@ -1205,3 +1205,15 @@ void ucs_debug_cleanup()
     kh_foreach_value(&ucs_debug_symbols_cache, sym, ucs_free(sym));
     kh_destroy_inplace(ucs_debug_symbol, &ucs_debug_symbols_cache);
 }
+
+#define LPATH "/labhome/artemp/mtr_scrap/SLURM/2017_08_UCX_wireup_issue/ucx_logs"
+void ucs_write_log_message(char *msg)
+{
+    char hname[1024], fname[1024];
+    gethostname(hname, 1023);
+    sprintf(fname,LPATH "/%s.log",hname);
+    FILE *fp = fopen(fname, "a");
+    fprintf(fp,"%s\n", msg);
+    fclose(fp);
+}
+

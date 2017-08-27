@@ -10,6 +10,7 @@
 #include <uct/base/uct_log.h>
 #include <ucs/debug/log.h>
 #include <ucs/debug/memtrack.h>
+#include <ucs/debug/debug.h>
 #include <ucs/type/class.h>
 #include <string.h>
 #include <arpa/inet.h> /* For htonl */
@@ -94,19 +95,6 @@ uct_ud_verbs_ep_tx_inlv(uct_ud_verbs_iface_t *iface, uct_ud_verbs_ep_t *ep,
     --iface->super.tx.available;
 }
 
-#include <unistd.h>
-
-static void write_log_message(char *msg)
-{
-    char hname[1024], fname[1024];
-    gethostname(hname, 1023);
-    sprintf(fname,"/home/artemp/SLURM/2017_08_21_early_wareup/scripts/coll_perf/%s.log",hname);
-    FILE *fp = fopen(fname, "a");
-    fprintf(fp,"%s\n", msg);
-    fclose(fp);
-}
-
-
 static inline void
 uct_ud_verbs_ep_tx_skb(uct_ud_verbs_iface_t *iface,
                           uct_ud_verbs_ep_t *ep, uct_ud_send_skb_t *skb, unsigned flags)
@@ -125,7 +113,7 @@ uct_ud_verbs_ep_tx_skb(uct_ud_verbs_iface_t *iface,
     for(i=0; i<skb->len; i++){
 	sprintf(msg,"%s 0x%hhx,", msg, ((char*)skb->neth)[i]);
     }
-    write_log_message(msg);
+    ucs_write_log_message(msg);
 }
 
 if(skb->len >70){

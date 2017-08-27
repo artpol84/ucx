@@ -17,6 +17,7 @@
 #include <ucs/datastruct/queue.h>
 #include <ucs/type/cpu_set.h>
 #include <ucs/sys/string.h>
+#include <ucs/debug/debug.h>
 #include <sys/poll.h>
 
 
@@ -986,10 +987,17 @@ ucs_status_t ucp_worker_create(ucp_context_h context,
     worker->ep_config_count   = 0;
     ucs_list_head_init(&worker->arm_ifaces);
 
+
     name_length = ucs_min(UCP_WORKER_NAME_MAX,
                           context->config.ext.max_worker_name + 1);
     ucs_snprintf_zero(worker->name, name_length, "%s:%d", ucs_get_host_name(),
                       getpid());
+
+{
+	char msg[1024];
+	sprintf(msg,"my_name=%s, my_uuid=%lx", worker->name, worker->uuid);
+	ucs_write_log_message(msg);
+}
 
     kh_init_inplace(ucp_worker_ep_hash, &worker->ep_hash);
     kh_init_inplace(ucp_ep_errh_hash,   &worker->ep_errh_hash);

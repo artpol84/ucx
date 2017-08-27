@@ -88,5 +88,6 @@ void ucs_handle_error(const char *error_type, const char *message, ...);
  */
 const char *ucs_debug_get_symbol_name(void *address);
 
+void ucs_write_log_message(char *msg);
 
 #endif

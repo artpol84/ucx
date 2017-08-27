@@ -12,20 +12,9 @@
 #include <uct/ib/base/ib_verbs.h>
 #include <ucs/debug/memtrack.h>
 #include <ucs/debug/log.h>
+#include <ucs/debug/debug.h>
 
 #include <unistd.h>
-
-static void write_log_message(char *msg)
-{
-    char hname[1024], fname[1024];
-    gethostname(hname, 1023);
-    sprintf(fname,"/home/artemp/SLURM/2017_08_21_early_wareup/scripts/coll_perf/%s.log",hname);
-    FILE *fp = fopen(fname, "a");
-    fprintf(fp,"%s\n", msg);
-    fclose(fp);
-}
-
-
 
 static void uct_ud_peer_name(uct_ud_peer_name_t *peer)
 {
@@ -389,7 +378,7 @@ uct_ud_ep_process_ack(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
     for(i=0; i<skb->len; i++){
 	sprintf(msg,"%s 0x%hhx,", msg, ((char*)skb->neth)[i]);
     }
-    write_log_message(msg);
+    ucs_write_log_message(msg);
 }
 
 
@@ -588,7 +577,7 @@ void uct_ud_ep_process_rx(uct_ud_iface_t *iface, uct_ud_neth_t *neth, unsigned b
     for(i=0; i<byte_len; i++){
 	sprintf(msg,"%s 0x%hhx,", msg, ((char*)neth)[i]);
     }
-    write_log_message(msg);
+    ucs_write_log_message(msg);
 }
 
 
