@@ -178,6 +178,8 @@ static size_t ucp_address_packed_size(ucp_worker_h worker,
     size = sizeof(uint64_t) +
            ucp_address_string_packed_size(ucp_worker_get_name(worker));
 
+    size++;
+
     if (num_devices == 0) {
         size += 1;                      /* NULL md_index */
     } else {
@@ -301,12 +303,15 @@ static ucs_status_t ucp_address_do_pack(ucp_worker_h worker, ucp_ep_h ep,
     unsigned index;
     void *ptr;
     uint8_t *iface_addr_len_ptr;
+    static char counter = 0;
 
     ptr = buffer;
     index = 0;
 
     *(uint64_t*)ptr = worker->uuid;
     ptr += sizeof(uint64_t);
+    *(char*)ptr = counter++;
+    ptr++;
     ptr = ucp_address_pack_string(ucp_worker_get_name(worker), ptr);
 
     if (num_devices == 0) {
@@ -500,6 +505,7 @@ ucs_status_t ucp_address_unpack(const void *buffer, uint64_t *remote_uuid_p,
     ptr += sizeof(uint64_t);
 
     aptr = ucp_address_unpack_string(ptr, remote_name, max);
+    aptr++;
 
     address_count = 0;
 
