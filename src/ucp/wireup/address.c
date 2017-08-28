@@ -503,9 +503,9 @@ ucs_status_t ucp_address_unpack(const void *buffer, uint64_t *remote_uuid_p,
     ptr = buffer;
     *remote_uuid_p = *(uint64_t*)ptr;
     ptr += sizeof(uint64_t);
-
+    ptr++;
     aptr = ucp_address_unpack_string(ptr, remote_name, max);
-    aptr++;
+
 
     address_count = 0;
 
