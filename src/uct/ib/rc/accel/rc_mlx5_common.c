@@ -22,8 +22,10 @@ ucs_stats_class_t uct_rc_mlx5_iface_stats_class = {
 };
 #endif
 
-unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_t *srq)
+unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *rc_iface,
+                                         uct_rc_mlx5_iface_common_t *iface)
 {
+    uct_ib_mlx5_srq_t *srq = &iface->rx.srq;
     uct_ib_mlx5_srq_seg_t *seg;
     uct_ib_iface_recv_desc_t *desc;
     uint16_t count, index, next_index;
@@ -39,8 +41,10 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
 
     index = srq->ready_idx;
     for (;;) {
+        unsigned locidx;
         next_index = index + 1;
-        seg = uct_ib_mlx5_srq_get_wqe(srq, next_index & srq->mask);
+        locidx = next_index & srq->mask;
+        seg = uct_ib_mlx5_srq_get_wqe(srq, locidx);
         if (UCS_CIRCULAR_COMPARE16(next_index, >, srq->free_idx)) {
             if (!seg->srq.free) {
                 break;
@@ -51,18 +55,17 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
             srq->free_idx  = next_index;
         }
 
-        if (seg->srq.desc == NULL) {
-            UCT_TL_IFACE_GET_RX_DESC(&iface->super.super, &iface->rx.mp,
+        if (NULL == iface->rx.desc[locidx]) {
+            UCT_TL_IFACE_GET_RX_DESC(&rc_iface->super.super, &rc_iface->rx.mp,
                                      desc, break);
 
             /* Set receive data segment pointer. Length is pre-initialized. */
-            hdr            = uct_ib_iface_recv_desc_hdr(&iface->super, desc);
-            seg->srq.desc  = desc;
+            hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
+            iface->rx.desc[locidx] = desc;
             seg->dptr.lkey = htonl(desc->lkey);
             seg->dptr.addr = htobe64((uintptr_t)hdr);
-            VALGRIND_MAKE_MEM_NOACCESS(hdr, iface->super.config.seg_size);
+            VALGRIND_MAKE_MEM_NOACCESS(hdr, rc_iface->super.config.seg_size);
         }
-
         index = next_index;
     }
 
@@ -70,7 +73,7 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
     if (count > 0) {
         srq->ready_idx           = index;
         srq->sw_pi               = index;
-        iface->rx.srq.available -= count;
+        rc_iface->rx.srq.available -= count;
         ucs_memory_cpu_store_fence();
         *srq->db = htonl(srq->sw_pi);
         ucs_assert(uct_ib_mlx5_srq_get_wqe(srq, srq->mask)->srq.next_wqe_index == 0);
@@ -126,7 +129,8 @@ ucs_status_t uct_rc_mlx5_iface_common_init(uct_rc_mlx5_iface_common_t *iface,
     }
 
     rc_iface->rx.srq.available = iface->rx.srq.mask + 1;
-    if (uct_rc_mlx5_iface_srq_post_recv(rc_iface, &iface->rx.srq) == 0) {
+    iface->rx.desc = calloc(rc_iface->rx.srq.available, sizeof(*iface->rx.desc));
+    if (uct_rc_mlx5_iface_srq_post_recv(rc_iface, iface) == 0) {
         ucs_error("Failed to post receives");
         return UCS_ERR_NO_MEMORY;
     }

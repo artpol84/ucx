@@ -412,7 +412,7 @@ ucs_status_t uct_ib_mlx5_srq_init(uct_ib_mlx5_srq_t *srq, struct ibv_srq *verbs_
     for (i = srq_info.head; i <= srq_info.tail; ++i) {
         seg = uct_ib_mlx5_srq_get_wqe(srq, i);
         seg->srq.free        = 0;
-        seg->srq.desc        = NULL;
+//        seg->srq.desc        = NULL;
         seg->dptr.byte_count = htonl(sg_byte_count);
     }
 
