@@ -37,7 +37,6 @@
 #define UCT_RC_MLX5_CHECK_AM_SHORT(_id, _length, _av_size) \
     UCT_RC_CHECK_AM_SHORT(_id, _length, UCT_RC_MLX5_AM_MAX_SHORT(_av_size))
 
-
 /* there is no need to do a special check for length == 0 because in that
  * case wqe size is valid: inl + raddr + dgram + ctrl fit in 2 WQ BB
  */
@@ -59,12 +58,13 @@ typedef struct uct_rc_mlx5_iface_common {
     struct {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
+        uct_ib_iface_recv_desc_t **desc;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
 } uct_rc_mlx5_iface_common_t;
 
-
-unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_t *srq);
+unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *rc_iface,
+                                         uct_rc_mlx5_iface_common_t *iface);
 
 ucs_status_t uct_rc_mlx5_iface_common_init(uct_rc_mlx5_iface_common_t *iface,
                                            uct_rc_iface_t *rc_iface,
@@ -112,8 +112,8 @@ static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                  uct_rc_iface_t *rc_iface)
 {
-    uct_ib_mlx5_srq_seg_t *seg;
-    uct_ib_iface_recv_desc_t *desc;
+    uct_ib_mlx5_srq_seg_t *seg = NULL;
+    uct_ib_iface_recv_desc_t *desc = NULL;
     uct_rc_iface_ops_t *rc_ops;
     uct_rc_hdr_t *hdr;
     struct mlx5_cqe64 *cqe;
@@ -142,7 +142,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     byte_len = ntohl(cqe->byte_cnt);
     wqe_ctr  = ntohs(cqe->wqe_counter);
     seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
-    desc     = seg->srq.desc;
+    desc     = mlx5_common_iface->rx.desc[wqe_ctr];
 
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
@@ -180,7 +180,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
 
     if ((status == UCS_OK) &&
         (wqe_ctr == ((mlx5_common_iface->rx.srq.ready_idx + 1) &
-                      mlx5_common_iface->rx.srq.mask))) {
+                              mlx5_common_iface->rx.srq.mask))) {
         /* If the descriptor was not used - if there are no "holes", we can just
          * reuse it on the receive queue. Otherwise, ready pointer will stay behind
          * until post_recv allocated more descriptors from the memory pool, fills
@@ -194,7 +194,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         if (status != UCS_OK) {
             udesc = (char*)desc + rc_iface->super.config.rx_headroom_offset;
             uct_recv_desc(udesc) = &rc_iface->super.release_desc;
-            seg->srq.desc        = NULL;
+            mlx5_common_iface->rx.desc[wqe_ctr] = NULL;
         }
         if (wqe_ctr == ((mlx5_common_iface->rx.srq.free_idx + 1) & mlx5_common_iface->rx.srq.mask)) {
             ++mlx5_common_iface->rx.srq.free_idx;
@@ -210,7 +210,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
 done:
     max_batch = rc_iface->super.config.rx_max_batch;
     if (rc_iface->rx.srq.available >= max_batch) {
-        uct_rc_mlx5_iface_srq_post_recv(rc_iface, &mlx5_common_iface->rx.srq);
+        uct_rc_mlx5_iface_srq_post_recv(rc_iface, mlx5_common_iface);
     }
     return count;
 }
