@@ -28,6 +28,17 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
     uct_ib_iface_recv_desc_t *desc;
     uint16_t count, index, next_index;
     uct_rc_hdr_t *hdr;
+/*
+{
+    static int delay = 1;
+    while(delay) {
+	sleep(1);
+    }
+}
+    if( NULL == fp ){
+        fp = fopen("/tmp/artemp_ucx_debug1.log","a");
+    }
+*/
 
     /* Make sure the union is right */
     UCS_STATIC_ASSERT(ucs_offsetof(uct_ib_mlx5_srq_seg_t, mlx5_srq.next_wqe_index) ==
@@ -38,6 +49,8 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
     ucs_assert(UCS_CIRCULAR_COMPARE16(srq->ready_idx, <=, srq->free_idx));
 
     index = srq->ready_idx;
+
+//fprintf(fp, "1: free_idx=%u, index=%u\n", srq->free_idx, index);
     for (;;) {
         next_index = index + 1;
         seg = uct_ib_mlx5_srq_get_wqe(srq, next_index & srq->mask);
@@ -65,6 +78,8 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_
 
         index = next_index;
     }
+
+//fprintf(fp, "2: free_idx=%u, index=%u\n", srq->free_idx, index);
 
     count = index - srq->sw_pi;
     if (count > 0) {

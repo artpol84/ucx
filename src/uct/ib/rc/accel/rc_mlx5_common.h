@@ -108,6 +108,8 @@ uct_rc_mlx5_iface_common_rx_inline(uct_rc_mlx5_iface_common_t *mlx5_iface,
                                 byte_len);
 }
 
+//static FILE *fp = NULL; 
+
 static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                  uct_rc_iface_t *rc_iface)
@@ -119,15 +121,27 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     struct mlx5_cqe64 *cqe;
     unsigned byte_len;
     unsigned qp_num;
-    uint16_t wqe_ctr;
+    uint16_t wqe_ctr, fwqe_ctr;
     uint16_t max_batch;
     ucs_status_t status;
     unsigned count;
     void *udesc;
     unsigned flags;
-
+/*
+    if( NULL == fp ){
+        fp = fopen("/tmp/artemp_ucx_debug.log","a");
+    }
+*/
     ucs_assert(uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq,
                                        mlx5_common_iface->rx.srq.mask)->srq.next_wqe_index == 0);
+
+    /* prefetch the very first buffer which is mostly likely the one that will be 
+     * received now */
+    fwqe_ctr = (mlx5_common_iface->rx.srq.free_idx + 1) & mlx5_common_iface->rx.srq.mask;
+    seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+    desc     = seg->srq.desc;
+    hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
+    ucs_prefetch(hdr);
 
     cqe = uct_ib_mlx5_poll_cq(&rc_iface->super, &mlx5_common_iface->rx.cq);
     if (cqe == NULL) {
@@ -144,6 +158,11 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
     desc     = seg->srq.desc;
 
+/*
+fprintf(fp, "wqe_ctr=%d, predicted=%d\n", wqe_ctr,
+	(mlx5_common_iface->rx.srq.free_idx + 1) & mlx5_common_iface->rx.srq.mask);
+//fclose(fp);
+*/
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
      */
