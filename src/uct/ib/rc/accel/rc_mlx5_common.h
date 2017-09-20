@@ -69,11 +69,10 @@ uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
                                uct_rc_iface_t *rc_iface)
 {
     unsigned wqe_ctr = (iface->rx.srq.free_idx + 1) & iface->rx.srq.mask;
-    uct_ib_mlx5_srq_seg_t *seg;
-    void *ptr;
+    uct_ib_mlx5_srq_seg_t *seg = NULL;
+    uct_ib_iface_recv_desc_t *desc = NULL;
     seg = uct_ib_mlx5_srq_get_wqe(&iface->rx.srq, wqe_ctr);
-    uct_ib_iface_recv_desc_t *desc = seg->srq.desc;
-    ptr = (void*)uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
+    desc = seg->srq.desc;
     iface->rx.segptr = seg;
     iface->rx.descptr = desc;
 }
