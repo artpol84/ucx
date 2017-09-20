@@ -58,13 +58,14 @@ typedef struct uct_rc_mlx5_iface_common {
     struct {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
+        void *segptr, *descptr;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
 } uct_rc_mlx5_iface_common_t;
 
 
 static UCS_F_ALWAYS_INLINE void
-uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface,
+uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
                                uct_rc_iface_t *rc_iface)
 {
     unsigned wqe_ctr = (iface->rx.srq.free_idx + 1) & iface->rx.srq.mask;
@@ -73,7 +74,15 @@ uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface,
     seg = uct_ib_mlx5_srq_get_wqe(&iface->rx.srq, wqe_ctr);
     uct_ib_iface_recv_desc_t *desc = seg->srq.desc;
     ptr = (void*)uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
-    ucs_prefetch(ptr);
+    iface->rx.segptr = seg;
+    iface->rx.descptr = desc;
+}
+
+static UCS_F_ALWAYS_INLINE void
+uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface)
+{
+    ucs_prefetch(iface->rx.segptr);
+    ucs_prefetch(iface->rx.descptr);
 }
 
 unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_t *srq);
@@ -141,7 +150,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     ucs_assert(uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq,
                                        mlx5_common_iface->rx.srq.mask)->srq.next_wqe_index == 0);
 
-    uct_rc_mlx5_srq_prefetch_first(mlx5_common_iface, rc_iface);
+    uct_rc_mlx5_srq_prefetch_first(mlx5_common_iface);
 
     cqe = uct_ib_mlx5_poll_cq(&rc_iface->super, &mlx5_common_iface->rx.cq);
     if (cqe == NULL) {
@@ -204,6 +213,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                 mlx5_common_iface->rx.srq.mask));
         ++mlx5_common_iface->rx.srq.ready_idx;
         ++mlx5_common_iface->rx.srq.free_idx;
+        uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
    } else {
         if (status != UCS_OK) {
             udesc = (char*)desc + rc_iface->super.config.rx_headroom_offset;
@@ -212,6 +222,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         }
         if (wqe_ctr == ((mlx5_common_iface->rx.srq.free_idx + 1) & mlx5_common_iface->rx.srq.mask)) {
             ++mlx5_common_iface->rx.srq.free_idx;
+            uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
         } else {
             /* Mark the segment as out-of-order, post_recv will advance free */
             seg->srq.free = 1;
@@ -225,6 +236,7 @@ done:
     max_batch = rc_iface->super.config.rx_max_batch;
     if (rc_iface->rx.srq.available >= max_batch) {
         uct_rc_mlx5_iface_srq_post_recv(rc_iface, &mlx5_common_iface->rx.srq);
+        uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
     }
     return count;
 }
