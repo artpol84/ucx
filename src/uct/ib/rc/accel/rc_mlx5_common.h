@@ -163,8 +163,13 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
 
     byte_len = ntohl(cqe->byte_cnt);
     wqe_ctr  = ntohs(cqe->wqe_counter);
-    seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
-    desc     = seg->srq.desc;
+    if(ucs_likely(wqe_ctr == mlx5_common_iface->rx.wqe_ctr)) {
+        seg      = mlx5_common_iface->rx.segptr;
+        desc     = mlx5_common_iface->rx.descptr;
+    } else {
+        seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+        desc     = seg->srq.desc;
+    }
 
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
