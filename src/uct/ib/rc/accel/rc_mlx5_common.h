@@ -221,6 +221,9 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         ++mlx5_common_iface->rx.srq.free_idx;
         uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
    } else {
+        if (ucs_unlikely(NULL == seg)) {
+            seg = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+        }
         if (status != UCS_OK) {
             udesc = (char*)desc + rc_iface->super.config.rx_headroom_offset;
             uct_recv_desc(udesc) = &rc_iface->super.release_desc;
@@ -231,9 +234,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
             uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
         } else {
             /* Mark the segment as out-of-order, post_recv will advance free */
-            if (ucs_unlikely(NULL == seg)) {
-                seg = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
-            }
+
             seg->srq.free = 1;
         }
     }
