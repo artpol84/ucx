@@ -83,6 +83,7 @@ static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface)
 {
     ucs_prefetch(iface->rx.descptr);
+    ucs_prefetch(iface->rx.segptr);
 }
 
 unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_t *srq);
