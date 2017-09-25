@@ -59,6 +59,7 @@ typedef struct uct_rc_mlx5_iface_common {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
         void *segptr, *descptr;
+        unsigned wqe_ctr;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
 } uct_rc_mlx5_iface_common_t;
@@ -75,6 +76,7 @@ uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
     desc = seg->srq.desc;
     iface->rx.segptr = seg;
     iface->rx.descptr = desc;
+    iface->rx.wqe_ctr = wqe_ctr;
 }
 
 static UCS_F_ALWAYS_INLINE void
