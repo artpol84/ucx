@@ -58,7 +58,7 @@ typedef struct uct_rc_mlx5_iface_common {
     struct {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
-        void *segptr, *descptr;
+        void *segptr, *hptr;
         unsigned wqe_ctr;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
@@ -75,14 +75,14 @@ uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
     seg = uct_ib_mlx5_srq_get_wqe(&iface->rx.srq, wqe_ctr);
     desc = seg->srq.desc;
     iface->rx.segptr = seg;
-    iface->rx.descptr = desc;
+    iface->rx.hptr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);;
     iface->rx.wqe_ctr = wqe_ctr;
 }
 
 static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface)
 {
-    ucs_prefetch(iface->rx.descptr);
+    ucs_prefetch(iface->rx.hptr);
     ucs_prefetch(iface->rx.segptr);
 }
 
@@ -169,12 +169,12 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
      */
-    if (cqe->op_own & MLX5_INLINE_SCATTER_32) {
+    if (ucs_likely(cqe->op_own & MLX5_INLINE_SCATTER_32)) {
         hdr = (uct_rc_hdr_t*)(cqe);
         uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_32, byte_len);
         flags = 0;
-    } else if (cqe->op_own & MLX5_INLINE_SCATTER_64) {
+    } else if (ucs_likely(cqe->op_own & MLX5_INLINE_SCATTER_64)) {
         hdr = (uct_rc_hdr_t*)(cqe - 1);
         uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_64, byte_len);
@@ -182,12 +182,12 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     } else {
         if(ucs_likely(wqe_ctr == mlx5_common_iface->rx.wqe_ctr)) {
             seg      = mlx5_common_iface->rx.segptr;
-            desc     = mlx5_common_iface->rx.descptr;
+            hdr      = mlx5_common_iface->rx.hptr;
         } else {
             seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
             desc     = seg->srq.desc;
+            hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
         }
-        hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
         VALGRIND_MAKE_MEM_DEFINED(hdr, byte_len);
         flags = UCT_CB_PARAM_FLAG_DESC;
     }
