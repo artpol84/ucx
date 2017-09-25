@@ -58,7 +58,7 @@ typedef struct uct_rc_mlx5_iface_common {
     struct {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
-        void *segptr, *hptr *dptr;
+        void *segptr, *hptr, *dptr;
         unsigned wqe_ctr;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
