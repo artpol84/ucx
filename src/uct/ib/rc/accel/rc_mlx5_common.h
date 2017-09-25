@@ -84,7 +84,6 @@ static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface)
 {
     ucs_prefetch(iface->rx.hptr);
-    ucs_prefetch(iface->rx.segptr);
 }
 
 unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *iface, uct_ib_mlx5_srq_t *srq);
@@ -170,12 +169,12 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
      */
-    if (ucs_likely(cqe->op_own & MLX5_INLINE_SCATTER_32)) {
+    if (cqe->op_own & MLX5_INLINE_SCATTER_32) {
         hdr = (uct_rc_hdr_t*)(cqe);
         uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_32, byte_len);
         flags = 0;
-    } else if (ucs_likely(cqe->op_own & MLX5_INLINE_SCATTER_64)) {
+    } else if (cqe->op_own & MLX5_INLINE_SCATTER_64) {
         hdr = (uct_rc_hdr_t*)(cqe - 1);
         uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_64, byte_len);
