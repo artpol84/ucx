@@ -80,7 +80,6 @@ uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
 static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_srq_prefetch_first(uct_rc_mlx5_iface_common_t *iface)
 {
-    ucs_prefetch(iface->rx.segptr);
     ucs_prefetch(iface->rx.descptr);
 }
 
@@ -132,8 +131,8 @@ static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                  uct_rc_iface_t *rc_iface)
 {
-    uct_ib_mlx5_srq_seg_t *seg;
-    uct_ib_iface_recv_desc_t *desc;
+    uct_ib_mlx5_srq_seg_t *seg = NULL;
+    uct_ib_iface_recv_desc_t *desc = NULL;
     uct_rc_iface_ops_t *rc_ops;
     uct_rc_hdr_t *hdr;
     struct mlx5_cqe64 *cqe;
@@ -163,13 +162,6 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
 
     byte_len = ntohl(cqe->byte_cnt);
     wqe_ctr  = ntohs(cqe->wqe_counter);
-    if(ucs_likely(wqe_ctr == mlx5_common_iface->rx.wqe_ctr)) {
-        seg      = mlx5_common_iface->rx.segptr;
-        desc     = mlx5_common_iface->rx.descptr;
-    } else {
-        seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
-        desc     = seg->srq.desc;
-    }
 
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
@@ -185,6 +177,13 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_64, byte_len);
         flags = 0;
     } else {
+        if(ucs_likely(wqe_ctr == mlx5_common_iface->rx.wqe_ctr)) {
+            seg      = mlx5_common_iface->rx.segptr;
+            desc     = mlx5_common_iface->rx.descptr;
+        } else {
+            seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+            desc     = seg->srq.desc;
+        }
         hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
         VALGRIND_MAKE_MEM_DEFINED(hdr, byte_len);
         flags = UCT_CB_PARAM_FLAG_DESC;
@@ -229,6 +228,9 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
             uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
         } else {
             /* Mark the segment as out-of-order, post_recv will advance free */
+            if (ucs_unlikely(NULL == seg)) {
+                seg = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+            }
             seg->srq.free = 1;
         }
     }
