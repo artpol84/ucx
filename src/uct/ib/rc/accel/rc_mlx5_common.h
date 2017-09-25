@@ -223,6 +223,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
    } else {
         if (ucs_unlikely(NULL == seg)) {
             seg = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
+            desc = seg->srq.desc;
         }
         if (status != UCS_OK) {
             udesc = (char*)desc + rc_iface->super.config.rx_headroom_offset;
