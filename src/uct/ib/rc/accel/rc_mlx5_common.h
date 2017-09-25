@@ -58,7 +58,7 @@ typedef struct uct_rc_mlx5_iface_common {
     struct {
         uct_ib_mlx5_cq_t   cq;
         uct_ib_mlx5_srq_t  srq;
-        void *segptr, *hptr;
+        void *segptr, *hptr *dptr;
         unsigned wqe_ctr;
     } rx;
     UCS_STATS_NODE_DECLARE(stats);
@@ -75,7 +75,8 @@ uct_rc_mlx5_srq_set_first(uct_rc_mlx5_iface_common_t *iface,
     seg = uct_ib_mlx5_srq_get_wqe(&iface->rx.srq, wqe_ctr);
     desc = seg->srq.desc;
     iface->rx.segptr = seg;
-    iface->rx.hptr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);;
+    iface->rx.dptr = desc;
+    iface->rx.hptr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
     iface->rx.wqe_ctr = wqe_ctr;
 }
 
@@ -183,6 +184,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         if(ucs_likely(wqe_ctr == mlx5_common_iface->rx.wqe_ctr)) {
             seg      = mlx5_common_iface->rx.segptr;
             hdr      = mlx5_common_iface->rx.hptr;
+            desc     = mlx5_common_iface->rx.dptr;
         } else {
             seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
             desc     = seg->srq.desc;
@@ -235,7 +237,6 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
             uct_rc_mlx5_srq_set_first(mlx5_common_iface, rc_iface);
         } else {
             /* Mark the segment as out-of-order, post_recv will advance free */
-
             seg->srq.free = 1;
         }
     }
