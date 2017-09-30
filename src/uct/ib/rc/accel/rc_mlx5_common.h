@@ -156,7 +156,6 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
 
     byte_len = ntohl(cqe->byte_cnt);
     wqe_ctr  = ntohs(cqe->wqe_counter);
-    seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
     desc     = mlx5_common_iface->rx.desc[wqe_ctr];
 
     /* Get a pointer to AM header (after which comes the payload)
@@ -215,6 +214,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
             ++mlx5_common_iface->rx.srq.free_idx;
         } else {
             /* Mark the segment as out-of-order, post_recv will advance free */
+            seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
             seg->srq.free = 1;
         }
     }

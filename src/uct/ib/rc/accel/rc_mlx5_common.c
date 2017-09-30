@@ -43,10 +43,9 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *rc_iface,
     for (;;) {
         unsigned locidx;
         next_index = index + 1;
-        seg = uct_ib_mlx5_srq_get_wqe(srq, next_index & srq->mask);
         locidx = next_index & srq->mask;
-        seg = uct_ib_mlx5_srq_get_wqe(srq, locidx);
         if (UCS_CIRCULAR_COMPARE16(next_index, >, srq->free_idx)) {
+            seg = uct_ib_mlx5_srq_get_wqe(srq, locidx);
             if (!seg->srq.free) {
                 break;
             }
@@ -57,6 +56,7 @@ unsigned uct_rc_mlx5_iface_srq_post_recv(uct_rc_iface_t *rc_iface,
         }
 
         if (NULL == iface->rx.desc[locidx]) {
+            seg = uct_ib_mlx5_srq_get_wqe(srq, locidx);
             UCT_TL_IFACE_GET_RX_DESC(&rc_iface->super.super, &rc_iface->rx.mp,
                                      desc, break);
 
