@@ -76,7 +76,7 @@ unsigned uct_rc_mlx5_iface_progress(void *arg)
     uct_rc_mlx5_iface_t *iface = arg;
     unsigned count;
 
-    count = uct_rc_mlx5_iface_common_poll_rx(&iface->mlx5_common, &iface->super);
+    count = uct_rc_mlx5_iface_common_poll_rx(&iface->mlx5_common, &iface->super, 0);
     if (count > 0) {
         return count;
     }
