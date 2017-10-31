@@ -103,11 +103,11 @@ uct_rc_mlx5_txqp_process_tx_cqe(uct_rc_txqp_t *txqp, struct mlx5_cqe64 *cqe,
 static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_iface_common_rx_inline(uct_rc_mlx5_iface_common_t *mlx5_iface,
                                    uct_rc_iface_t *rc_iface,
-                                   uct_ib_iface_recv_desc_t *desc,
+                                   uct_ib_mlx5_srq_seg_t *seg,
                                    int stats_counter, unsigned byte_len)
 {
     UCS_STATS_UPDATE_COUNTER(mlx5_iface->stats, stats_counter, 1);
-    VALGRIND_MAKE_MEM_UNDEFINED(uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc),
+    VALGRIND_MAKE_MEM_UNDEFINED(uct_ib_iface_recv_desc_hdr(&rc_iface->super, seg->srq.desc),
                                 byte_len);
 }
 
@@ -115,8 +115,7 @@ static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
                                  uct_rc_iface_t *rc_iface, char have_scat32)
 {
-    uct_ib_mlx5_srq_seg_t *seg;
-    uct_ib_iface_recv_desc_t *desc;
+    uct_ib_mlx5_srq_seg_t *seg = NULL;
     uct_rc_iface_ops_t *rc_ops;
     uct_rc_hdr_t *hdr;
     struct mlx5_cqe64 *cqe;
@@ -145,23 +144,22 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     byte_len = ntohl(cqe->byte_cnt);
     wqe_ctr  = ntohs(cqe->wqe_counter);
     seg      = uct_ib_mlx5_srq_get_wqe(&mlx5_common_iface->rx.srq, wqe_ctr);
-    desc     = seg->srq.desc;
 
     /* Get a pointer to AM header (after which comes the payload)
      * Support cases of inline scatter by pointing directly to CQE.
      */
     if (have_scat32 && cqe->op_own & MLX5_INLINE_SCATTER_32) {
         hdr = (uct_rc_hdr_t*)(cqe);
-        uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
+        uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, seg,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_32, byte_len);
         flags = 0;
     } else if (cqe->op_own & MLX5_INLINE_SCATTER_64) {
         hdr = (uct_rc_hdr_t*)(cqe - 1);
-        uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, desc,
+        uct_rc_mlx5_iface_common_rx_inline(mlx5_common_iface, rc_iface, seg,
                                            UCT_RC_MLX5_IFACE_STAT_RX_INL_64, byte_len);
         flags = 0;
     } else {
-        hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, desc);
+        hdr = uct_ib_iface_recv_desc_hdr(&rc_iface->super, seg->srq.desc);
         VALGRIND_MAKE_MEM_DEFINED(hdr, byte_len);
         flags = UCT_CB_PARAM_FLAG_DESC;
     }
@@ -195,7 +193,7 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         ++mlx5_common_iface->rx.srq.free_idx;
    } else {
         if (status != UCS_OK) {
-            udesc = (char*)desc + rc_iface->super.config.rx_headroom_offset;
+            udesc = (char*)seg->srq.desc + rc_iface->super.config.rx_headroom_offset;
             uct_recv_desc(udesc) = &rc_iface->super.release_desc;
             seg->srq.desc        = NULL;
         }
