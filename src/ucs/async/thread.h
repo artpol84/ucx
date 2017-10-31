@@ -24,10 +24,10 @@ typedef struct ucs_async_thread_context {
 #if defined(NVALGRIND) || defined(__COVERITY__)
 
 #define UCS_ASYNC_THREAD_BLOCK(_async) \
-    ucs_spin_lock(&(_async)->thread.spinlock)
+    ucs_spin_lock_x(&(_async)->thread.spinlock, __FILE__, __LINE__, __func__)
 
 #define UCS_ASYNC_THREAD_UNBLOCK(_async) \
-    ucs_spin_unlock(&(_async)->thread.spinlock)
+    ucs_spin_unlock_x(&(_async)->thread.spinlock, __FILE__, __LINE__, __func__)
 
 #else
 

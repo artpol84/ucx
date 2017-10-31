@@ -344,7 +344,7 @@ static int ucs_async_thread_try_block(ucs_async_context_t *async)
     (RUNNING_ON_VALGRIND) ?
         (pthread_mutex_trylock(&async->thread.mutex) == 0) :
 #endif
-        ucs_spin_trylock(&async->thread.spinlock);
+        ucs_spin_trylock_x(&async->thread.spinlock, __FILE__, __LINE__, __func__);
 }
 
 static void ucs_async_thread_unblock(ucs_async_context_t *async)

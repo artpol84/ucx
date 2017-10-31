@@ -8,6 +8,17 @@
 
 #include <stdio.h>
 
+#include <pthread.h>
+struct myrecord {
+    int tid;
+    double ts;
+    char *pref;
+    char *fname;
+    int line;
+    const char *func;
+} mytable[10*1024];
+int mytable_cnt = 0;
+
 
 const char *ucs_status_string(ucs_status_t status)
 {

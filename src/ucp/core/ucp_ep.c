@@ -131,13 +131,25 @@ static void ucp_ep_delete(ucp_ep_h ep)
     ucs_free(ep);
 }
 
+FILE *_ucx_myfp = NULL;
+
+#include <time.h>
+#define GET_TS() ({                             \
+	struct timeval tv;                     \
+	double ret = 0;                         \
+	gettimeofday(&tv, NULL);    \
+	ret = tv.tv_sec + 1E-6*tv.tv_usec;      \
+	ret;                                    \
+	})
+
+
 ucs_status_t ucp_ep_create_stub(ucp_worker_h worker, uint64_t dest_uuid,
                                 const char *message, ucp_ep_h *ep_p)
 {
     ucs_status_t status;
     ucp_ep_config_key_t key;
     ucp_ep_h ep = NULL;
-
+    
     status = ucp_ep_new(worker, dest_uuid, "??", message, &ep);
     if (status != UCS_OK) {
         goto err;
@@ -230,10 +242,38 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
     ucs_status_t status;
     uint64_t dest_uuid;
     ucp_ep_h ep;
+    
+    static int counter = 0;
+
+    if( NULL == _ucx_myfp ){
+	char name[1024];
+	sprintf(name, "/tmp/artemp/ucx_%d.log", getpid());
+	_ucx_myfp = fopen(name, "w");
+    }
+
+    counter++;
+
+    fprintf(_ucx_myfp,"ep_create[%d]: start %lf\n", counter, GET_TS());
+
 
     UCP_THREAD_CS_ENTER_CONDITIONAL(&worker->mt_lock);
 
-    UCS_ASYNC_BLOCK(&worker->async);
+    fprintf(_ucx_myfp,"ep_create[%d]: enter_cond %lf\n", counter, GET_TS());
+
+//    UCS_ASYNC_BLOCK(&worker->async);
+
+    if ((&worker->async)->mode == UCS_ASYNC_MODE_THREAD) {
+//            UCS_ASYNC_THREAD_BLOCK(&worker->async);
+                ucs_spin_lock_1(&(&worker->async)->thread.spinlock, _ucx_myfp);
+	        fprintf(_ucx_myfp,"ep_create[%d]: async_block:spinlock %lf\n", counter, GET_TS());
+    } else if ((&worker->async)->mode == UCS_ASYNC_MODE_SIGNAL) { 
+            UCS_ASYNC_SIGNAL_BLOCK(&worker->async); 
+        fprintf(_ucx_myfp,"ep_create[%d]: signal_block %lf\n", counter, GET_TS());
+    } else { 
+        ++(&worker->async)->poll_block; 
+        fprintf(_ucx_myfp,"ep_create[%d]: poll_block %lf\n", counter, GET_TS());
+    }
+
 
     if (params->field_mask & UCP_EP_PARAM_FIELD_REMOTE_ADDRESS) {
         status = ucp_address_unpack(params->address, &dest_uuid, peer_name, sizeof(peer_name),
@@ -248,6 +288,8 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
         goto out;
     }
 
+    fprintf(_ucx_myfp,"ep_create[%d]: unpacked %lf\n", counter, GET_TS());
+
     ep = ucp_worker_ep_find(worker, dest_uuid);
     if (ep != NULL) {
         status = ucp_ep_adjust_params(ep, params);
@@ -257,11 +299,15 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
         goto out_free_address;
     }
 
+    fprintf(_ucx_myfp,"ep_create[%d]: find %lf\n", counter, GET_TS());
+
     /* allocate endpoint */
     status = ucp_ep_new(worker, dest_uuid, peer_name, "from api call", &ep);
     if (status != UCS_OK) {
         goto out_free_address;
     }
+
+    fprintf(_ucx_myfp,"ep_create[%d]: ep_new %lf\n", counter, GET_TS());
 
     /* initialize transport endpoints */
     status = ucp_wireup_init_lanes(ep, params, address_count, address_list,
@@ -269,6 +315,8 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
     if (status != UCS_OK) {
         goto err_destroy_ep;
     }
+
+    fprintf(_ucx_myfp,"ep_create[%d]: init_lane %lf\n", counter, GET_TS());
 
     /* Setup error handler */
     if (params->field_mask & UCP_EP_PARAM_FIELD_ERR_HANDLER_CB) {
@@ -289,6 +337,8 @@ ucs_status_t ucp_ep_create(ucp_worker_h worker,
         }
     }
 
+    fprintf(_ucx_myfp,"ep_create[%d]: done %lf\n", counter, GET_TS());
+
     *ep_p = ep;
     goto out_free_address;
 
@@ -297,7 +347,11 @@ err_destroy_ep:
 out_free_address:
     ucs_free(address_list);
 out:
-    UCS_ASYNC_UNBLOCK(&worker->async);
+//    UCS_ASYNC_UNBLOCK(&worker->async);
+
+    ucs_spin_unlock_1(&(&worker->async)->thread.spinlock, _ucx_myfp);
+    fprintf(_ucx_myfp,"ep_create[%d]: async_block:spinlock %lf\n", counter, GET_TS());
+
     UCP_THREAD_CS_EXIT_CONDITIONAL(&worker->mt_lock);
     return status;
 }
