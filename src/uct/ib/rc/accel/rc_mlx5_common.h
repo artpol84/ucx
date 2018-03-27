@@ -365,6 +365,30 @@ uct_rc_mlx5_iface_common_am_handler(uct_rc_mlx5_iface_common_t *mlx5_iface,
         status = rc_ops->fc_handler(rc_iface, qp_num, hdr, byte_len - sizeof(*hdr),
                                     cqe->imm_inval_pkey, cqe->slid, flags);
     } else {
+        static int rank = -1;
+
+        if (rank == -1) {
+            char *tmp = getenv("myrank");
+            if (tmp)
+                rank = atoi(tmp);
+        }
+
+        if (rank == 1 && (byte_len - sizeof(*hdr)) > 31 && ((char *)(hdr + 1))[23] ) {
+            char* ptr = (char *)(hdr + 1);
+            //int i;
+            //            char str[512] ={0};
+            //            for (i = 0; i < 40; i++) {
+            printf("in ucx recv: %d\n", ptr[29]);
+            if( ptr[29] == 7 ) {
+                volatile int delay = 0;
+                while(delay) {
+                    sleep(1);
+                }
+            }
+            //            }
+            //    printf("%s\n",str);
+            fflush(stdout);
+        }
         status = uct_iface_invoke_am(&rc_iface->super.super, hdr->am_id,
                                      hdr + 1, byte_len - sizeof(*hdr),
                                      flags);
