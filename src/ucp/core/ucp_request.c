@@ -308,7 +308,7 @@ ucp_request_send_start(ucp_request_t *req, ssize_t max_short,
     size_t       length = req->send.length;
     ucs_status_t status;
 
-    if ((ssize_t)length <= max_short) {
+    if ((ssize_t)length <= 0) {
         /* short */
         req->send.uct.func = proto->contig_short;
         UCS_PROFILE_REQUEST_EVENT(req, "start_contig_short", req->send.length);
