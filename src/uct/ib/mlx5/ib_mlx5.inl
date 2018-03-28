@@ -426,6 +426,72 @@ uct_ib_mlx5_post_send(uct_ib_mlx5_txwq_t *wq,
 }
 
 
+static UCS_F_ALWAYS_INLINE uint16_t
+uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
+                      struct mlx5_wqe_ctrl_seg *ctrl, unsigned wqe_size,
+                      const void *buffer, unsigned length)
+{
+    uint16_t n, sw_pi, num_bb;
+    void *src, *dst;
+    uint32_t qp_num     = ntohl(ctrl->qpn_ds) >> 8;
+
+    ucs_assert(((unsigned long)ctrl % UCT_IB_MLX5_WQE_SEG_SIZE) == 0);
+    num_bb  = ucs_div_round_up(wqe_size, MLX5_SEND_WQE_BB);
+    sw_pi   = wq->sw_pi;
+
+    uct_ib_mlx5_txwq_validate(wq, num_bb);
+    /* TODO Put memory store fence here too, to prevent WC being flushed after DBrec */
+    ucs_memory_cpu_store_fence();
+
+    /* Write doorbell record */
+    *wq->dbrec = htonl(sw_pi += num_bb);
+
+    /* Make sure that doorbell record is written before ringing the doorbell */
+    ucs_memory_bus_store_fence();
+
+    /* Set up copy pointers */
+    dst = wq->bf->reg.ptr;
+    src = ctrl;
+
+    ucs_assert(wqe_size <= UCT_IB_MLX5_BF_REG_SIZE);
+    ucs_assert(num_bb <= UCT_IB_MLX5_MAX_BB);
+    if (ucs_likely(wq->bf->enable_bf)) {
+        /* BF copy */
+        for (n = 0; n < num_bb; ++n) {
+            uct_ib_mlx5_bf_copy_bb(dst, src);
+            dst += MLX5_SEND_WQE_BB;
+            src += MLX5_SEND_WQE_BB;
+            if (ucs_unlikely(src == wq->qend)) {
+                src = wq->qstart;
+            }
+        }
+    } else {
+        /* DB copy */
+        *(volatile uint64_t *)dst = *(volatile uint64_t *)src;
+        ucs_memory_bus_store_fence();
+        src = uct_ib_mlx5_txwq_wrap_any(wq, src + (num_bb * MLX5_SEND_WQE_BB));
+    }
+
+    /* We don't want the compiler to reorder instructions and hurt latency */
+    ucs_compiler_fence();
+
+    /* Advance queue pointer */
+    ucs_assert(ctrl == wq->curr);
+    wq->curr       = src;
+    wq->prev_sw_pi = wq->sw_pi;
+    wq->sw_pi      = sw_pi;
+
+    /* Flip BF register */
+    wq->bf->reg.addr ^= UCT_IB_MLX5_BF_REG_SIZE;
+
+    if( length > 128 ) {
+        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d tid=%d",
+                  qp_num, sw_pi, wq->sw_pi, ((char*)buffer)[100]);
+    }
+    return num_bb;
+}
+
+
 static inline uct_ib_mlx5_srq_seg_t *
 uct_ib_mlx5_srq_get_wqe(uct_ib_mlx5_srq_t *srq, uint16_t index)
 {
