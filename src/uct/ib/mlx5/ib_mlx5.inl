@@ -370,6 +370,7 @@ uct_ib_mlx5_post_send(uct_ib_mlx5_txwq_t *wq,
 {
     uint16_t n, sw_pi, num_bb;
     void *src, *dst;
+    uint32_t qp_num     = ntohl(ctrl->qpn_ds) >> 8;
 
     ucs_assert(((unsigned long)ctrl % UCT_IB_MLX5_WQE_SEG_SIZE) == 0);
     num_bb  = ucs_div_round_up(wqe_size, MLX5_SEND_WQE_BB);
@@ -419,6 +420,8 @@ uct_ib_mlx5_post_send(uct_ib_mlx5_txwq_t *wq,
 
     /* Flip BF register */
     wq->bf->reg.addr ^= UCT_IB_MLX5_BF_REG_SIZE;
+
+    ucs_trace_data("SEND: QP=0x%x sw_pi=%d", qp_num, sw_pi);
     return num_bb;
 }
 
