@@ -564,8 +564,9 @@ uct_rc_mlx5_txqp_inline_post(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
         ucs_fatal("invalid send opcode");
     }
 
-    uct_rc_mlx5_common_post_send(iface, qp_type, txqp, txwq, opcode, 0, fm_ce_se,
-                                 wqe_size, av, grh_av, imm_val_be);
+    uct_rc_mlx5_common_post_send1(iface, qp_type, txqp, txwq, opcode, 0, fm_ce_se,
+                                 wqe_size, av, grh_av, imm_val_be,
+                                  buffer, length);
 }
 
 /*
