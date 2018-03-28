@@ -377,7 +377,7 @@ uct_rc_mlx5_iface_common_am_handler(uct_rc_mlx5_iface_common_t *mlx5_iface,
             }
         }
 
-        if (rank == 1 && (byte_len - sizeof(*hdr)) > 31 && ((char *)(hdr + 1))[23] ) {
+        if (rank == 1) {
             char* ptr = (char *)(hdr + 1);
             printf("in ucx recv: %d\n", ptr[29]);
             if( ptr[29] == 7 ) {
