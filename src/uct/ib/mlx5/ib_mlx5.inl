@@ -483,10 +483,10 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
     /* Flip BF register */
     wq->bf->reg.addr ^= UCT_IB_MLX5_BF_REG_SIZE;
 
-    ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d",
-              qp_num, sw_pi, wq->sw_pi);
+    ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d, len=%d",
+              qp_num, sw_pi, wq->sw_pi, length);
 
-    if( length > 128 ) {
+    if( length >= 128 ) {
         ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d tid=%d",
                   qp_num, sw_pi, wq->sw_pi, ((char*)buffer)[100]);
     }
