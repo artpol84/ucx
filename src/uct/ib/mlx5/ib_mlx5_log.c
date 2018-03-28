@@ -375,6 +375,6 @@ void __uct_ib_mlx5_log_rx(const char *file, int line, const char *function,
                                     ntohs(cqe->slid),
                                     data, length,
                                     packet_dump_cb, buf, sizeof(buf) - 1);
-    uct_log_data(file, line, function, buf);
+    ucs_log_dispatch(_file, _line, _function, UCS_LOG_LEVEL_DEBUG, "%s", buf);
 }
 

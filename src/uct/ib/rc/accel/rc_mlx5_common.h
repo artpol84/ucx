@@ -1182,8 +1182,9 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         goto done;
     }
 
-    ucs_trace_data("RECV: QP=0x%x cq_ci=%d",
+    ucs_debug("RECV: QP=0x%x CQ=0x%x cq_ci=%d",
                    (uint32_t)(ntohl(cqe->sop_drop_qpn) & UCS_MASK(UCT_IB_QPN_ORDER)),
+                   mlx5_common_iface->rx.cq.cq_num,
                    mlx5_common_iface->rx.cq.cq_ci - 1);
 
 
