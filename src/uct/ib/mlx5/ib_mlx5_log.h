@@ -30,13 +30,13 @@ void uct_ib_mlx5_cqe_dump(const char *file, int line, const char *function,
                           struct mlx5_cqe64 *cqe);
 
 #define uct_ib_mlx5_log_tx(_iface, _qpt, _wqe, _qstart, _qend, _dump_cb) \
-    if (ucs_log_is_enabled(UCS_LOG_LEVEL_TRACE_DATA)) { \
+    if (ucs_log_is_enabled(UCS_LOG_LEVEL_DEBUG)) { \
         __uct_ib_mlx5_log_tx(__FILE__, __LINE__, __FUNCTION__, \
                              _iface, _qpt, _wqe, _qstart, _qend, _dump_cb); \
     }
 
 #define uct_ib_mlx5_log_rx(_iface, _qpt, _cqe, _data, _dump_cb) \
-    if (ucs_log_is_enabled(UCS_LOG_LEVEL_TRACE_DATA)) { \
+    if (ucs_log_is_enabled(UCS_LOG_LEVEL_DEBUG)) { \
         __uct_ib_mlx5_log_rx(__FILE__, __LINE__, __FUNCTION__, \
                              _iface, _qpt, _cqe, _data, _dump_cb); \
     }

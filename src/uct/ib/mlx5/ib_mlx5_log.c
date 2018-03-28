@@ -338,6 +338,7 @@ void __uct_ib_mlx5_log_tx(const char *file, int line, const char *function,
     uct_ib_mlx5_wqe_dump(iface, qp_type, wqe, qstart, qend, packet_dump_cb,
                          buf, sizeof(buf) - 1);
     uct_log_data(file, line, function, buf);
+    ucs_log_dispatch(file, line, function, UCS_LOG_LEVEL_DEBUG, "%s", buf);
 }
 
 void uct_ib_mlx5_cqe_dump(const char *file, int line, const char *function, struct mlx5_cqe64 *cqe)
