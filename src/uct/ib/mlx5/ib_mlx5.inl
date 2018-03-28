@@ -370,7 +370,6 @@ uct_ib_mlx5_post_send(uct_ib_mlx5_txwq_t *wq,
 {
     uint16_t n, sw_pi, num_bb;
     void *src, *dst;
-    uint32_t qp_num     = ntohl(ctrl->qpn_ds) >> 8;
 
     ucs_assert(((unsigned long)ctrl % UCT_IB_MLX5_WQE_SEG_SIZE) == 0);
     num_bb  = ucs_div_round_up(wqe_size, MLX5_SEND_WQE_BB);
