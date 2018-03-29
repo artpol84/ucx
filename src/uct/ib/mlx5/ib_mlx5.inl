@@ -433,6 +433,7 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
     uint16_t n, sw_pi, num_bb;
     void *src, *dst;
     uint32_t qp_num     = ntohl(ctrl->qpn_ds) >> 8;
+    char had_switch = 0;
 
     static int use_bf = -1;
 
@@ -468,8 +469,8 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
     ucs_assert(num_bb <= UCT_IB_MLX5_MAX_BB);
 
     if (ucs_likely(wq->bf->enable_bf && use_bf)  ) {
-        ucs_debug("USE BlueFlame: %u, num_bb = %d",
-                  wq->bf->enable_bf, num_bb);
+//        ucs_debug("USE BlueFlame: %u, num_bb = %d",
+//                  wq->bf->enable_bf, num_bb);
         /* BF copy */
         for (n = 0; n < num_bb; ++n) {
             uct_ib_mlx5_bf_copy_bb(dst, src);
@@ -477,6 +478,7 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
             src += MLX5_SEND_WQE_BB;
             if (ucs_unlikely(src == wq->qend)) {
                 src = wq->qstart;
+                had_switch = 1;
             }
         }
     } else {
@@ -502,8 +504,8 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 //              qp_num, sw_pi, wq->sw_pi, length);
 
     if( length > 100 ) {
-        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d",
-                  qp_num, sw_pi, wq->sw_pi, length, ((char*)buffer)[100]);
+        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d, switch = %d",
+                  qp_num, sw_pi, wq->sw_pi, length, ((char*)buffer)[100], had_switch);
     }
     return num_bb;
 }

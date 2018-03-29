@@ -1236,9 +1236,8 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         rc_hdr = uct_rc_mlx5_iface_common_data(mlx5_common_iface, rc_iface, cqe,
                                                byte_len, &flags);
         if( byte_len > 128 ) {
-            ucs_debug("RECV: QP=0x%x CQ=0x%x cq_ci=%d tid=%d",
+            ucs_debug("RECV: QP=0x%x cq_ci=%d tid=%d",
                       (uint32_t)(ntohl(cqe->sop_drop_qpn) & UCS_MASK(UCT_IB_QPN_ORDER)),
-                      mlx5_common_iface->rx.cq.cq_num,
                       mlx5_common_iface->rx.cq.cq_ci - 1,
                       ((char*)rc_hdr)[100]);
         }
