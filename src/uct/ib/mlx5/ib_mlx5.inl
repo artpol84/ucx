@@ -434,6 +434,18 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
     void *src, *dst;
     uint32_t qp_num     = ntohl(ctrl->qpn_ds) >> 8;
 
+//    static int no_bf = -1;
+
+//    /* Disable BF on runtime */
+//    if( no_inline < 0 ) {
+//        char *tmp = getenv("DBG_NOBF");
+//        if( tmp ) {
+//            no_bf = 1;
+//        } else {
+//            no_bf = 0;
+//        }
+//    }
+
     ucs_assert(((unsigned long)ctrl % UCT_IB_MLX5_WQE_SEG_SIZE) == 0);
     num_bb  = ucs_div_round_up(wqe_size, MLX5_SEND_WQE_BB);
     sw_pi   = wq->sw_pi;
@@ -454,7 +466,9 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 
     ucs_assert(wqe_size <= UCT_IB_MLX5_BF_REG_SIZE);
     ucs_assert(num_bb <= UCT_IB_MLX5_MAX_BB);
-    if (ucs_likely(wq->bf->enable_bf)) {
+
+    if (ucs_likely(wq->bf->enable_bf) ) {
+        ucs_debug("USE BlueFlame!!");
         /* BF copy */
         for (n = 0; n < num_bb; ++n) {
             uct_ib_mlx5_bf_copy_bb(dst, src);
