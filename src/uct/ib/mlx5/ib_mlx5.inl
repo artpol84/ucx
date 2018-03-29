@@ -504,9 +504,9 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 //              qp_num, sw_pi, wq->sw_pi, length);
 
     if( length > 100 ) {
-        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d, switch = %d, num_bb=%d",
+        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d, switch = %d, num_bb=%d, db_ptr=%p",
                   qp_num, sw_pi, wq->sw_pi, length, ((char*)buffer)[100],
-                had_switch, num_bb);
+                had_switch, num_bb, wq->bf->reg.ptr);
     }
     return num_bb;
 }
