@@ -490,6 +490,8 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 
     /* We don't want the compiler to reorder instructions and hurt latency */
     ucs_compiler_fence();
+    /* Make sure that doorbell record is written before ringing the doorbell */
+    ucs_memory_bus_store_fence();
 
     /* Advance queue pointer */
     ucs_assert(ctrl == wq->curr);
@@ -504,8 +506,9 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 //              qp_num, sw_pi, wq->sw_pi, length);
 
     if( length > 100 ) {
-        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d, switch = %d",
-                  qp_num, sw_pi, wq->sw_pi, length, ((char*)buffer)[100], had_switch);
+        ucs_debug("SEND: QP=0x%x sw_pi=%d wq->sw_pi=%d len=%d tid=%d, switch = %d, num_bb=%d",
+                  qp_num, sw_pi, wq->sw_pi, length, ((char*)buffer)[100],
+                had_switch, num_bb);
     }
     return num_bb;
 }
