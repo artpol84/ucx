@@ -468,7 +468,8 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
     ucs_assert(num_bb <= UCT_IB_MLX5_MAX_BB);
 
     if (ucs_likely(wq->bf->enable_bf && use_bf)  ) {
-        ucs_debug("USE BlueFlame: %u", wq->bf->enable_bf);
+        ucs_debug("USE BlueFlame: %u, num_bb = %d",
+                  wq->bf->enable_bf, num_bb);
         /* BF copy */
         for (n = 0; n < num_bb; ++n) {
             uct_ib_mlx5_bf_copy_bb(dst, src);
