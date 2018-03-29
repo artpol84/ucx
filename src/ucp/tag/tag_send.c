@@ -142,6 +142,21 @@ ucp_tag_send_inline(ucp_ep_h ep, const void *buffer, size_t count,
 {
     ucs_status_t status;
     size_t length;
+    static int no_inline = -1;
+
+    /* Disable BF on runtime */
+    if( no_inline < 0 ) {
+        char *tmp = getenv("DBG_NOINLINE");
+        if( tmp ) {
+            no_inline = 1;
+        } else {
+            no_inline = 0;
+        }
+    }
+
+    if( no_inline ) {
+        return UCS_ERR_NO_RESOURCE;
+    }
 
     if (ucs_unlikely(!UCP_DT_IS_CONTIG(datatype))) {
         return UCS_ERR_NO_RESOURCE;
