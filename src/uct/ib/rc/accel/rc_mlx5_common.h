@@ -488,6 +488,47 @@ uct_rc_mlx5_common_post_send(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
 }
 
 
+static UCS_F_ALWAYS_INLINE void
+uct_rc_mlx5_common_post_send1(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
+                             uct_rc_txqp_t *txqp, uct_ib_mlx5_txwq_t *txwq,
+                             uint8_t opcode, uint8_t opmod, uint8_t fm_ce_se,
+                             size_t wqe_size, uct_ib_mlx5_base_av_t *av,
+                             struct mlx5_grh_av *grh_av, uint32_t imm, int max_log_sge,
+                             uct_ib_log_sge_t *log_sge,
+                              const void *buffer,unsigned length)
+{
+    struct mlx5_wqe_ctrl_seg *ctrl;
+    uint16_t posted;
+
+    ctrl = txwq->curr;
+
+    if (opcode == MLX5_OPCODE_SEND_IMM) {
+        uct_ib_mlx5_set_ctrl_seg_with_imm(ctrl, txwq->sw_pi, opcode, opmod,
+                                          txqp->qp->qp_num, fm_ce_se, wqe_size,
+                                          imm);
+    } else {
+        uct_ib_mlx5_set_ctrl_seg(ctrl, txwq->sw_pi, opcode, opmod,
+                                 txqp->qp->qp_num, fm_ce_se, wqe_size);
+    }
+
+    if (qp_type == IBV_EXP_QPT_DC_INI) {
+        uct_ib_mlx5_set_dgram_seg((void*)(ctrl + 1), av, grh_av, qp_type);
+    }
+
+    uct_ib_mlx5_log_tx(&iface->super, qp_type, ctrl, txwq->qstart,
+                       txwq->qend, max_log_sge, log_sge,
+                       ((opcode == MLX5_OPCODE_SEND) || (opcode == MLX5_OPCODE_SEND_IMM)) ?
+                       uct_rc_mlx5_common_packet_dump : NULL);
+
+    posted = uct_ib_mlx5_post_send1(txwq, ctrl, wqe_size, buffer, length);
+    if (fm_ce_se & MLX5_WQE_CTRL_CQ_UPDATE) {
+        txwq->sig_pi = txwq->sw_pi - posted;
+    }
+
+    uct_rc_txqp_posted(txqp, iface, posted, fm_ce_se & MLX5_WQE_CTRL_CQ_UPDATE);
+}
+
+
 /*
  * Generic function that setups and posts WQE with inline segment
  * Parameters which are not relevant to the opcode are ignored.
@@ -577,8 +618,9 @@ uct_rc_mlx5_txqp_inline_post(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
         ucs_fatal("invalid send opcode");
     }
 
-    uct_rc_mlx5_common_post_send(iface, qp_type, txqp, txwq, opcode, 0, fm_ce_se,
-                                 wqe_size, av, grh_av, imm_val_be, max_log_sge, NULL);
+    uct_rc_mlx5_common_post_send1(iface, qp_type, txqp, txwq, opcode, 0, fm_ce_se,
+                                 wqe_size, av, grh_av, imm_val_be, max_log_sge, NULL,
+                                 buffer, length);
 }
 
 /*
