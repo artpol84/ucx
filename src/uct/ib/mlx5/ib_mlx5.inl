@@ -490,8 +490,6 @@ uct_ib_mlx5_post_send1(uct_ib_mlx5_txwq_t *wq,
 
     /* We don't want the compiler to reorder instructions and hurt latency */
     ucs_compiler_fence();
-    /* Make sure that doorbell record is written before ringing the doorbell */
-    ucs_memory_bus_store_fence();
 
     /* Advance queue pointer */
     ucs_assert(ctrl == wq->curr);
