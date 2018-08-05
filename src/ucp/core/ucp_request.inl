@@ -105,6 +105,8 @@ ucp_request_complete_tag_recv(ucp_request_t *req, ucs_status_t status)
                   req, req + 1, UCP_REQUEST_FLAGS_ARG(req->flags),
                   req->recv.tag.info.sender_tag, req->recv.tag.info.length,
                   ucs_status_string(status));
+    UCS_STATS_UPDATE_COUNTER(req->recv.worker->stats,
+                             UCP_WORKER_STAT_TAG_RX_COMPLETE, 1);
     if( req->recv.length != req->recv.tag.info.length ) {
         UCS_STATS_UPDATE_COUNTER(req->recv.worker->stats,
                                  UCP_WORKER_STAT_TAG_RX_SIZE_MISM, 1);
