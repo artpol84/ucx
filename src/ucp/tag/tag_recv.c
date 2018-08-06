@@ -185,6 +185,24 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_recv_nb,
 
     req = ucp_request_get(worker);
     if (ucs_likely(req != NULL)) {
+
+        /* Initialize receive request */
+        req->status             = UCS_OK;
+        req->recv.worker        = worker;
+        req->recv.buffer        = buffer;
+        req->recv.datatype      = datatype;
+
+        ucp_dt_recv_state_init(&req->recv.state, buffer, datatype, count);
+
+        if( ucp_dt_length(datatype, count, buffer,
+                          &req->recv.state) > 1024 ) {
+            int ret = 1;
+            while( ret ) {
+                ret = uct_worker_progress(worker->uct);
+            }
+            ucs_async_check_miss(&worker->async);
+        }
+
         rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nb");
         ucp_tag_recv_common(worker, buffer, count, datatype, tag, tag_mask, req,
                             UCP_REQUEST_FLAG_CALLBACK, cb, rdesc,"recv_nb");
