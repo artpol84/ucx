@@ -28,6 +28,8 @@ ucp_tag_recv_request_completed(ucp_request_t *req, ucs_status_t status,
         ucp_request_put(req);
     }
     UCS_PROFILE_REQUEST_EVENT(req, "complete_recv", 0);
+    UCS_STATS_UPDATE_COUNTER(req->recv.worker->stats,
+                                UCP_WORKER_STAT_TAG_RX_COMPLETE, 1);
 }
 
 static UCS_F_ALWAYS_INLINE void
