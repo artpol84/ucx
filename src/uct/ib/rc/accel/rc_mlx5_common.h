@@ -12,6 +12,7 @@
 #include <uct/ib/mlx5/ib_mlx5.h>
 #include <uct/ib/mlx5/ib_mlx5.inl>
 #include <uct/ib/mlx5/ib_mlx5_log.h>
+#include "config.h"
 
 
 #define UCT_RC_MLX5_OPCODE_FLAG_RAW   0x100

@@ -16,6 +16,8 @@
 #include <pthread.h>
 #include <sys/resource.h>
 
+#include "config.h"
+
 
 #define UCT_IB_MD_PREFIX         "ib"
 #define UCT_IB_MEM_ACCESS_FLAGS  (IBV_ACCESS_LOCAL_WRITE | \

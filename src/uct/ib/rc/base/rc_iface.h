@@ -8,6 +8,7 @@
 #define UCT_RC_IFACE_H
 
 #include "rc_def.h"
+#include <config.h>
 
 #include <uct/base/uct_iface.h>
 #include <uct/ib/base/ib_log.h>
