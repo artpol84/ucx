@@ -1131,18 +1131,20 @@ uct_rc_mlx5_iface_handle_tm_list_op(uct_rc_mlx5_iface_common_t *mlx5_common_ifac
 {
     uct_rc_mlx5_cmd_wq_t *cmd_wq;
     uct_rc_mlx5_srq_op_t *op;
-    uct_tag_context_t *ctx;
-    uct_rc_iface_ctx_priv_t *priv;
+//    uct_tag_context_t *ctx;
+    //uct_rc_iface_ctx_priv_t *priv;
 
     cmd_wq = &mlx5_common_iface->tm.cmd_wq;
     op     = cmd_wq->ops + (cmd_wq->ops_head++ & cmd_wq->ops_mask);
     uct_rc_mlx5_release_tag_entry(mlx5_common_iface, op->tag);
-
+/*
     if (opcode == UCT_RC_MLX5_CQE_APP_OP_TM_REMOVE) {
         ctx  = op->tag->ctx;
         priv = uct_rc_iface_ctx_priv(ctx);
-        ctx->completed_cb(ctx, priv->tag, 0, priv->length, UCS_ERR_CANCELED);
+        // Hack: don't call the callback on remove
+        //ctx->completed_cb(ctx, priv->tag, 0, priv->length, UCS_ERR_CANCELED);
     }
+*/
 }
 
 static UCS_F_ALWAYS_INLINE void
