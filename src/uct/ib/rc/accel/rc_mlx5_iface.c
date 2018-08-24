@@ -194,6 +194,28 @@ static unsigned uct_rc_mlx5_iface_progress_tm(void *arg)
 }
 
 #include <ucs/time/time.h>
+#include "sync.h"
+
+static void get_averages(double avg, double reductions[3])
+{
+    double *all_results = NULL;
+    int i;
+
+    sync_shmem_allgather(avg, &all_results);
+    double max_avg=all_results[0], min_avg = all_results[0], avg_avg = 0;
+    for(i=0; i < sync_shmem_nranks(); i++){
+        if( all_results[i] > max_avg ) {
+            max_avg = all_results[i];
+        }
+        if( all_results[i] < min_avg ) {
+            min_avg = all_results[i];
+        }
+        avg_avg += all_results[i];
+    }
+    reductions[0] = min_avg;
+    reductions[1] = max_avg;
+    reductions[2] = avg_avg / sync_shmem_nranks();
+}
 
 static ucs_status_t uct_rc_mlx5_iface_tag_recv_zcopy(uct_iface_h tl_iface,
                                                      uct_tag_t tag,
@@ -215,21 +237,34 @@ static ucs_status_t uct_rc_mlx5_iface_tag_recv_zcopy(uct_iface_h tl_iface,
         }
 
         {
-            printf("Overhead of ucs_get_time: ");
+
             volatile ucs_time_t timer = ucs_get_time(), timer_tmp = 0;
             for(i=0; i<10000; i++) {
                 timer_tmp += ucs_get_time();
             }
             timer = ucs_get_time() - timer;
-            printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+
+            if( sync_shmem_rank() == 0 ){
+                printf("Overhead of ucs_get_time: ");
+                printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+            }
         }
 
+        /* Initialize shmem-based sync IPC */
+        sync_shmem_cli_init();
+        double ticks_per_us = ucs_time_sec_value()/1000000;
 
-
-        printf("AVG Latency of ADD+REMOVE from # of requests\n");
+        if( sync_shmem_rank() == 0 ){
+            printf("AVG Latency of ADD+REMOVE from # of requests\n");
+        }
         for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+
+            /* Make sure that all processes enter simultaneously */
+            sync_shmem_barrier();
+
+            int niters = 10000;
             ucs_time_t timer = ucs_get_time();
-            for(i = 0; i < 1000; i++){
+            for(i = 0; i < niters; i++){
                 /* Post n_to_post add operations */
                 for(j=0; j < n_to_post; j++) {
                     uct_rc_mlx5_iface_common_tag_recv(&iface->mlx5_common, &iface->super,
@@ -253,16 +288,28 @@ static ucs_status_t uct_rc_mlx5_iface_tag_recv_zcopy(uct_iface_h tl_iface,
                 }
             }
             timer = ucs_get_time() - timer;
-            printf("%d : %lf us (%ld)\n", n_to_post,
-                   (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
-                   (unsigned long)timer);
+            double avg_time = (double)timer / ticks_per_us / niters / n_to_post;
+            double avgs[3];
+            get_averages(avg_time, avgs);
+            if( sync_shmem_rank() == 0 ){
+                printf("%d : %lf / %lf / %lf us (%ld)\n", n_to_post,
+                       avgs[0], avgs[1], avgs[2],
+                        (unsigned long)timer);
+            }
         }
 
 
-        printf("AVG Latency of ADD / REMOVE SEPARATELY from # of requests\n");
+        if( sync_shmem_rank() == 0 ){
+            printf("AVG Latency of ADD / REMOVE SEPARATELY from # of requests\n");
+        }
         for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
             ucs_time_t add = 0, remove = 0;
-            for(i = 0; i < 1000; i++){
+
+            /* Make sure that all processes enter simultaneously */
+            sync_shmem_barrier();
+            int niters = 10000;
+
+            for(i = 0; i < niters; i++){
                 ucs_time_t timer = ucs_get_time();
                 /* Post n_to_post add operations */
                 for(j=0; j < n_to_post; j++) {
@@ -289,20 +336,34 @@ static ucs_status_t uct_rc_mlx5_iface_tag_recv_zcopy(uct_iface_h tl_iface,
                 }
                 remove += ucs_get_time() - timer;
             }
-            printf("%d : ADD: %lf us (%ld) ; REMOVE: %lf us (%ld)\n", n_to_post,
-                   (double)add / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
-                   (unsigned long)add,
-                   (double)remove / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
-                   (unsigned long)remove);
+
+            double add_avg = (double)add / ticks_per_us / niters / n_to_post;
+            double add_avgs[3];
+            get_averages(add_avg, add_avgs);
+            double rem_avg = (double)remove / ticks_per_us / niters / n_to_post;
+            double rem_avgs[3];
+            get_averages(rem_avg, rem_avgs);
+
+            if( sync_shmem_rank() == 0 ){
+                printf("%d : ADD: %lf / %lf /%lf us ; REMOVE: %lf /%lf / %lf us\n",
+                   n_to_post,
+                   add_avgs[0], add_avgs[1], add_avgs[2],
+                   rem_avgs[0], rem_avgs[1], rem_avgs[2]);
+            }
         }
 
         {
-            printf("Pipelined post/cancel\n");
+            if( sync_shmem_rank() == 0 ){
+                printf("Pipelined post/cancel\n");
+            }
             uct_rc_mlx5_iface_common_tag_recv(&iface->mlx5_common, &iface->super,
                                               tag + 1, tag_mask, iov, iovcnt,
                                               &tmp_ctx[0]);
+            int niters = 10000;
+            sync_shmem_barrier();
+
             ucs_time_t timer = ucs_get_time();
-            for(i = 1; i < 1000; i++){
+            for(i = 1; i < niters; i++){
                 uct_rc_mlx5_iface_common_tag_recv_cancel(&iface->mlx5_common,
                                                          &iface->super,
                                                          &tmp_ctx[(i-1)%128], 0);
@@ -319,7 +380,14 @@ static ucs_status_t uct_rc_mlx5_iface_tag_recv_zcopy(uct_iface_h tl_iface,
                                                      &iface->super,
                                                      &tmp_ctx[(i-1)%128], 0);
 
-            printf("latency: %lf us\n", (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000);
+            double pipe_avg = (double)timer / ticks_per_us / niters;
+            double pipe_avgs[3];
+            get_averages(pipe_avg, pipe_avgs);
+
+            if( sync_shmem_rank() == 0 ){
+                printf("latency: %lf / %lf / %lf us\n",
+                   pipe_avgs[0], pipe_avgs[1], pipe_avgs[2]);
+            }
         }
     }
 
