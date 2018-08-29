@@ -13,6 +13,7 @@
 #include <uct/ib/mlx5/ib_mlx5.inl>
 #include <uct/ib/mlx5/ib_mlx5_log.h>
 
+#include "config.h"
 
 #define UCT_RC_MLX5_OPCODE_FLAG_RAW   0x100
 #define UCT_RC_MLX5_OPCODE_FLAG_TM    0x200
@@ -928,13 +929,22 @@ uct_rc_mlx5_set_tm_seg(uct_ib_mlx5_txwq_t *txwq,
 }
 
 static UCS_F_ALWAYS_INLINE void
+uct_rc_mlx5_release_tag_entry_do(uct_rc_mlx5_iface_common_t *iface,
+                              uct_rc_mlx5_tag_entry_t *tag)
+{
+    tag->num_cqes        = 0;
+    tag->next            = NULL;
+    iface->tm.tail->next = tag;
+    iface->tm.tail       = tag;
+}
+
+
+static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_release_tag_entry(uct_rc_mlx5_iface_common_t *iface,
                               uct_rc_mlx5_tag_entry_t *tag)
 {
     if (!--tag->num_cqes) {
-        tag->next            = NULL;
-        iface->tm.tail->next = tag;
-        iface->tm.tail       = tag;
+        uct_rc_mlx5_release_tag_entry_do(iface, tag);
     }
 }
 
@@ -1137,7 +1147,6 @@ uct_rc_mlx5_iface_handle_tm_list_op(uct_rc_mlx5_iface_common_t *mlx5_common_ifac
 
     cmd_wq = &mlx5_common_iface->tm.cmd_wq;
     op     = cmd_wq->ops + (cmd_wq->ops_head++ & cmd_wq->ops_mask);
-    uct_rc_mlx5_release_tag_entry(mlx5_common_iface, op->tag);
 
     if (opcode == UCT_RC_MLX5_CQE_APP_OP_TM_REMOVE) {
         ctx  = op->tag->ctx;
@@ -1182,7 +1191,7 @@ uct_rc_mlx5_iface_handle_expected(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
     ctx       = tag_entry->ctx;
     priv      = uct_rc_iface_ctx_priv(tag_entry->ctx);
 
-    uct_rc_mlx5_release_tag_entry(mlx5_common_iface, tag_entry);
+    uct_rc_mlx5_release_tag_entry_do(mlx5_common_iface, tag_entry);
 
     if (cqe->op_own & MLX5_INLINE_SCATTER_64) {
         ucs_assert(byte_len <= priv->length);
