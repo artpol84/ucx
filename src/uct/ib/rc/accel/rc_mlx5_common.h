@@ -13,6 +13,8 @@
 #include <uct/ib/mlx5/ib_mlx5.inl>
 #include <uct/ib/mlx5/ib_mlx5_log.h>
 
+#include "config.h"
+
 
 #define UCT_RC_MLX5_OPCODE_FLAG_RAW   0x100
 #define UCT_RC_MLX5_OPCODE_FLAG_TM    0x200
@@ -116,7 +118,6 @@ typedef struct uct_rc_mlx5_wqe_tm_seg {
 typedef struct uct_rc_mlx5_tag_entry {
     struct uct_rc_mlx5_tag_entry  *next;
     uct_tag_context_t             *ctx;     /* the corresponding UCT context */
-    unsigned                      num_cqes; /* how many CQEs is expected for this entry */
 } uct_rc_mlx5_tag_entry_t;
 
 
@@ -931,11 +932,9 @@ static UCS_F_ALWAYS_INLINE void
 uct_rc_mlx5_release_tag_entry(uct_rc_mlx5_iface_common_t *iface,
                               uct_rc_mlx5_tag_entry_t *tag)
 {
-    if (!--tag->num_cqes) {
-        tag->next            = NULL;
-        iface->tm.tail->next = tag;
-        iface->tm.tail       = tag;
-    }
+    tag->next            = NULL;
+    iface->tm.tail->next = tag;
+    iface->tm.tail       = tag;
 }
 
 static UCS_F_ALWAYS_INLINE void
@@ -1076,7 +1075,6 @@ uct_rc_mlx5_iface_common_tag_recv(uct_rc_mlx5_iface_common_t *iface,
     iface->tm.head      = tag_entry->next;
     tag_entry->next     = NULL;
     tag_entry->ctx      = ctx;
-    tag_entry->num_cqes = 2; /* ADD and MSG_ARRIVED/CANCELED */
 
     /* Save aux data (which will be needed in the following ops) in the context */
     priv->tag_handle   = tag_entry - iface->tm.list;
@@ -1137,9 +1135,9 @@ uct_rc_mlx5_iface_handle_tm_list_op(uct_rc_mlx5_iface_common_t *mlx5_common_ifac
 
     cmd_wq = &mlx5_common_iface->tm.cmd_wq;
     op     = cmd_wq->ops + (cmd_wq->ops_head++ & cmd_wq->ops_mask);
-    uct_rc_mlx5_release_tag_entry(mlx5_common_iface, op->tag);
 
     if (opcode == UCT_RC_MLX5_CQE_APP_OP_TM_REMOVE) {
+        uct_rc_mlx5_release_tag_entry(mlx5_common_iface, op->tag);
         ctx  = op->tag->ctx;
         priv = uct_rc_iface_ctx_priv(ctx);
         ctx->completed_cb(ctx, priv->tag, 0, priv->length, UCS_ERR_CANCELED);
