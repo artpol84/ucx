@@ -14,6 +14,8 @@
 #include <ucs/sys/compiler.h>
 #include <arpa/inet.h> /* For htonl */
 
+#include "ucs/time/time.h"
+
 /*
  *
  * Helper function for buffer-copy post.
@@ -79,12 +81,120 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
     UCT_RC_MLX5_CHECK_PUT_SHORT(length, 0);
     UCT_RC_CHECK_RES(iface, &ep->super);
 
-    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
-                                 &ep->super.txqp, &ep->tx.wq,
-                                 MLX5_OPCODE_RDMA_WRITE,
-                                 buffer, length, 0, 0, 0,
-                                 remote_addr, uct_ib_md_direct_rkey(rkey),
-                                 NULL, NULL, 0, 0, INT_MAX);
+    /* Hack to measure NO-OP operation latency */
+    {
+        int i, j, n_to_post;
+        extern int my_tx_compl_counter;
+        uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
+        {
+            printf("Overhead of ucs_get_time: ");
+            volatile ucs_time_t timer = ucs_get_time(), timer_tmp = 0;
+            for(i=0; i<10000; i++) {
+                timer_tmp += ucs_get_time();
+            }
+            timer = ucs_get_time() - timer;
+            printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+        }
+
+        printf("AVG Latency of NO-OP from # of requests\n");
+        for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+            ucs_time_t timer = ucs_get_time();
+            for(i = 0; i < 1000; i++){
+                int start_cntr = my_tx_compl_counter;
+                /* Post n_to_post add operations */
+                for(j=0; j < n_to_post; j++) {
+                    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+                                                 &ep->super.txqp, &ep->tx.wq,
+                                                 MLX5_OPCODE_NOP, NULL, 0,
+                                                 0, 0, 0,
+                                                 0, 0,
+                                                 NULL, NULL, 0, 0,
+                                                 INT_MAX);
+                }
+                /* wait for completion */
+                while( my_tx_compl_counter < (start_cntr + n_to_post) ) {
+                    uct_rc_mlx5_iface_progress(iface_mlx5);
+                }
+            }
+            timer = ucs_get_time() - timer;
+            printf("%d : %lf us (%ld)\n", n_to_post,
+                   (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
+                   (unsigned long)timer);
+        }
+
+
+//        printf("AVG Latency of ADD / REMOVE SEPARATELY from # of requests\n");
+//        for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+//            ucs_time_t add = 0, remove = 0;
+//            for(i = 0; i < 1000; i++){
+//                ucs_time_t timer = ucs_get_time();
+//                /* Post n_to_post add operations */
+//                for(j=0; j < n_to_post; j++) {
+//                    uct_rc_mlx5_iface_common_tag_recv(&iface->mlx5_common, &iface->super,
+//                                                      tag + j + 1, tag_mask, iov, iovcnt,
+//                                                      &tmp_ctx[j]);
+//                }
+//                /* wait for completion */
+//                while( mlx5_common->tm.cmd_wq.ops_tail !=  mlx5_common->tm.cmd_wq.ops_head ) {
+//                    uct_rc_mlx5_iface_common_poll_rx(mlx5_common, &iface->super, 1);
+//                }
+//                add += ucs_get_time() - timer;
+
+//                timer = ucs_get_time();
+//                /* Post n_to_post remove operations */
+//                for(j=0; j < n_to_post; j++) {
+//                    uct_rc_mlx5_iface_common_tag_recv_cancel(&iface->mlx5_common,
+//                                                             &iface->super,
+//                                                             &tmp_ctx[j], 0);
+//                }
+//                /* wait for completion */
+//                while( mlx5_common->tm.cmd_wq.ops_tail !=  mlx5_common->tm.cmd_wq.ops_head ) {
+//                    uct_rc_mlx5_iface_common_poll_rx(mlx5_common, &iface->super, 1);
+//                }
+//                remove += ucs_get_time() - timer;
+//            }
+//            printf("%d : ADD: %lf us (%ld) ; REMOVE: %lf us (%ld)\n", n_to_post,
+//                   (double)add / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
+//                   (unsigned long)add,
+//                   (double)remove / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
+//                   (unsigned long)remove);
+//        }
+
+//        {
+//            printf("Pipelined post/cancel\n");
+//            uct_rc_mlx5_iface_common_tag_recv(&iface->mlx5_common, &iface->super,
+//                                              tag + 1, tag_mask, iov, iovcnt,
+//                                              &tmp_ctx[0]);
+//            ucs_time_t timer = ucs_get_time();
+//            for(i = 1; i < 1000; i++){
+//                uct_rc_mlx5_iface_common_tag_recv_cancel(&iface->mlx5_common,
+//                                                         &iface->super,
+//                                                         &tmp_ctx[(i-1)%128], 0);
+//                uct_rc_mlx5_iface_common_tag_recv(&iface->mlx5_common, &iface->super,
+//                                                  tag + j, tag_mask, iov, iovcnt,
+//                                                  &tmp_ctx[i % 128]);
+//                /* wait for completion */
+//                while( mlx5_common->tm.cmd_wq.ops_tail !=  mlx5_common->tm.cmd_wq.ops_head ) {
+//                    uct_rc_mlx5_iface_common_poll_rx(mlx5_common, &iface->super, 1);
+//                }
+//            }
+//            timer = ucs_get_time() - timer;
+//            uct_rc_mlx5_iface_common_tag_recv_cancel(&iface->mlx5_common,
+//                                                     &iface->super,
+//                                                     &tmp_ctx[(i-1)%128], 0);
+
+//            printf("latency: %lf us\n", (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000);
+//        }
+    }
+
+
+
+//    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+//                                 &ep->super.txqp, &ep->tx.wq,
+//                                 MLX5_OPCODE_RDMA_WRITE,
+//                                 buffer, length, 0, 0, 0,
+//                                 remote_addr, uct_ib_md_direct_rkey(rkey),
+//                                 NULL, NULL, 0, 0, INT_MAX);
     UCT_TL_EP_STAT_OP(&ep->super.super, PUT, SHORT, length);
     return UCS_OK;
 }
