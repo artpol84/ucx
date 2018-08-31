@@ -83,6 +83,13 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
 
     /* Hack to measure NO-OP operation latency */
     {
+        {
+            int delay = 1;
+            while(delay){
+                sleep(1);
+            }
+        }
+
         int i, j, n_to_post;
         extern int my_tx_compl_counter;
         uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
