@@ -14,6 +14,8 @@
 #include <ucs/sys/compiler.h>
 #include <arpa/inet.h> /* For htonl */
 
+#include "ucs/time/time.h"
+
 /*
  *
  * Helper function for buffer-copy post.
@@ -79,12 +81,63 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
     UCT_RC_MLX5_CHECK_PUT_SHORT(length, 0);
     UCT_RC_CHECK_RES(iface, &ep->super);
 
-    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
-                                 &ep->super.txqp, &ep->tx.wq,
-                                 MLX5_OPCODE_RDMA_WRITE,
-                                 buffer, length, 0, 0, 0,
-                                 remote_addr, uct_ib_md_direct_rkey(rkey),
-                                 NULL, NULL, 0, 0, INT_MAX);
+    /* Hack to measure NO-OP operation latency */
+    {
+        {
+            int delay = 0;
+            while(delay){
+                sleep(1);
+            }
+        }
+
+        int i, j, n_to_post;
+        extern int my_tx_compl_counter;
+        uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
+        {
+            printf("Overhead of ucs_get_time: ");
+            volatile ucs_time_t timer = ucs_get_time(), timer_tmp = 0;
+            for(i=0; i<10000; i++) {
+                timer_tmp += ucs_get_time();
+            }
+            timer = ucs_get_time() - timer;
+            printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+        }
+
+        printf("AVG Latency of NO-OP from # of requests\n");
+        for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+            ucs_time_t timer = ucs_get_time();
+            for(i = 0; i < 1000; i++){
+                int start_cntr = my_tx_compl_counter;
+                /* Post n_to_post add operations */
+                for(j=0; j < n_to_post; j++) {
+                    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+                                                 &ep->super.txqp, &ep->tx.wq,
+                                                 MLX5_OPCODE_NOP, NULL, 0,
+                                                 0, 0, 0,
+                                                 0, 0,
+                                                 NULL, NULL, 0, 0,
+                                                 INT_MAX);
+                }
+                /* wait for completion */
+                while( my_tx_compl_counter < (start_cntr + n_to_post) ) {
+                    uct_rc_mlx5_iface_progress(iface_mlx5);
+                }
+            }
+            timer = ucs_get_time() - timer;
+            printf("%d : %lf us (%ld)\n", n_to_post,
+                   (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
+                   (unsigned long)timer);
+        }
+    }
+
+
+
+//    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+//                                 &ep->super.txqp, &ep->tx.wq,
+//                                 MLX5_OPCODE_RDMA_WRITE,
+//                                 buffer, length, 0, 0, 0,
+//                                 remote_addr, uct_ib_md_direct_rkey(rkey),
+//                                 NULL, NULL, 0, 0, INT_MAX);
     UCT_TL_EP_STAT_OP(&ep->super.super, PUT, SHORT, length);
     return UCS_OK;
 }

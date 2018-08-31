@@ -364,6 +364,8 @@ uct_rc_txqp_completion_op(uct_rc_iface_send_op_t *op, const void *resp)
     ucs_assert(op->flags & UCT_RC_IFACE_SEND_OP_FLAG_INUSE);
     op->flags &= ~UCT_RC_IFACE_SEND_OP_FLAG_INUSE;
     op->handler(op, resp);
+    extern int my_tx_compl_counter;
+    my_tx_compl_counter++;
 }
 
 static UCS_F_ALWAYS_INLINE void

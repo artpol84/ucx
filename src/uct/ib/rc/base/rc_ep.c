@@ -362,6 +362,8 @@ void uct_rc_ep_get_bcopy_handler_no_completion(uct_rc_iface_send_op_t *op,
     ucs_mpool_put(desc);
 }
 
+int my_tx_compl_counter = 0;
+
 void uct_rc_ep_send_op_completion_handler(uct_rc_iface_send_op_t *op,
                                           const void *resp)
 {
