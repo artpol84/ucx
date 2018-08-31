@@ -97,11 +97,13 @@ libuct_la_SOURCES += \
 if HAVE_MLX5_HW
 noinst_HEADERS += \
 	ib/rc/accel/rc_mlx5.h \
+	ib/rc/accel/sync.h \
 	ib/rc/accel/rc_mlx5_common.h 
 
 libuct_la_SOURCES += \
 	ib/rc/accel/rc_mlx5_ep.c \
 	ib/rc/accel/rc_mlx5_iface.c \
+	ib/rc/accel/sync.c \
 	ib/rc/accel/rc_mlx5_common.c
 endif
 endif

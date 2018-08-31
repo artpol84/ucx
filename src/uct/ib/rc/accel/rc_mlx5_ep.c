@@ -71,6 +71,30 @@ uct_rc_mlx5_ep_zcopy_post(uct_rc_mlx5_ep_t *ep,
     return UCS_INPROGRESS;
 }
 
+#include "sync.h"
+
+static void get_averages(double avg, double reductions[3])
+{
+    double *all_results = NULL;
+    int i;
+
+    sync_shmem_allgather(avg, &all_results);
+    double max_avg=all_results[0], min_avg = all_results[0], avg_avg = 0;
+    for(i=0; i < sync_shmem_nranks(); i++){
+        if( all_results[i] > max_avg ) {
+            max_avg = all_results[i];
+        }
+        if( all_results[i] < min_avg ) {
+            min_avg = all_results[i];
+        }
+        avg_avg += all_results[i];
+    }
+    reductions[0] = min_avg;
+    reductions[1] = max_avg;
+    reductions[2] = avg_avg / sync_shmem_nranks();
+}
+
+
 static ucs_status_t UCS_F_ALWAYS_INLINE
 uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned length,
                                 uint64_t remote_addr, uct_rkey_t rkey)
@@ -90,6 +114,12 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
             }
         }
 
+
+        /* Initialize shmem-based sync IPC */
+        sync_shmem_cli_init();
+        double ticks_per_us = ucs_time_sec_value()/1000000;
+
+
         int i, j, n_to_post;
         extern int my_tx_compl_counter;
         uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
@@ -100,13 +130,22 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
                 timer_tmp += ucs_get_time();
             }
             timer = ucs_get_time() - timer;
-            printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+
+            if( sync_shmem_rank() == 0 ){
+                printf("Overhead of ucs_get_time: ");
+                printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
+            }
         }
 
-        printf("AVG Latency of NO-OP from # of requests\n");
+        if( sync_shmem_rank() == 0 ){
+            printf("AVG Latency of NO-OP from # of requests\n");
+        }
         for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+            int niters = 10000;
+            sync_shmem_barrier();
             ucs_time_t timer = ucs_get_time();
-            for(i = 0; i < 1000; i++){
+
+            for(i = 0; i < niters; i++){
                 int start_cntr = my_tx_compl_counter;
                 /* Post n_to_post add operations */
                 for(j=0; j < n_to_post; j++) {
@@ -124,9 +163,15 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
                 }
             }
             timer = ucs_get_time() - timer;
-            printf("%d : %lf us (%ld)\n", n_to_post,
-                   (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
-                   (unsigned long)timer);
+            double avg_time = (double)timer / ticks_per_us / niters / n_to_post;
+            double avgs[3];
+            get_averages(avg_time, avgs);
+            if( sync_shmem_rank() == 0 ){
+                printf("%d : %lf / %lf / %lf us (%ld)\n", n_to_post,
+                       avgs[0], avgs[1], avgs[2],
+                        (unsigned long)timer);
+            }
+
         }
     }
 
