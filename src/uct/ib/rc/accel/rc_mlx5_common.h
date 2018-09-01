@@ -620,7 +620,9 @@ uct_rc_mlx5_txqp_inline_post(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
         wqe_size         = sizeof(*ctrl) + av_size;
         inl              = next_seg;
         inl->byte_count  = htonl(MLX5_INLINE_SEG);
-        fm_ce_se        |= MLX5_WQE_CTRL_CQ_UPDATE | MLX5_WQE_CTRL_FENCE;
+//        Do not request the completion so we will be able to post as many NO-OPs
+//        as we want
+//        fm_ce_se        |= MLX5_WQE_CTRL_CQ_UPDATE | MLX5_WQE_CTRL_FENCE;
         break;
 
     default:

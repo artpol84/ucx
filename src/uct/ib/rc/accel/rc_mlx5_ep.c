@@ -92,7 +92,7 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
 
         int i, j, n_to_post;
         extern int my_tx_compl_counter;
-        uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
+        //uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
         {
             printf("Overhead of ucs_get_time: ");
             volatile ucs_time_t timer = ucs_get_time(), timer_tmp = 0;
@@ -104,10 +104,10 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
         }
 
         printf("AVG Latency of NO-OP from # of requests\n");
-        for(n_to_post = 1; n_to_post <= 128; n_to_post *= 2){
+        for(n_to_post = 1; n_to_post <= 1024; n_to_post *= 2){
             ucs_time_t timer = ucs_get_time();
             for(i = 0; i < 1000; i++){
-                int start_cntr = my_tx_compl_counter;
+                //int start_cntr = my_tx_compl_counter;
                 /* Post n_to_post add operations */
                 for(j=0; j < n_to_post; j++) {
                     uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
@@ -117,10 +117,6 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
                                                  0, 0,
                                                  NULL, NULL, 0, 0,
                                                  INT_MAX);
-                }
-                /* wait for completion */
-                while( my_tx_compl_counter < (start_cntr + n_to_post) ) {
-                    uct_rc_mlx5_iface_progress(iface_mlx5);
                 }
             }
             timer = ucs_get_time() - timer;
