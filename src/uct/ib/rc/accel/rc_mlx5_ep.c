@@ -90,7 +90,7 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
             }
         }
 
-        int i, j, n_to_post;
+        int i, j, *n_to_post;
         extern int my_tx_compl_counter;
         //uct_rc_mlx5_iface_t *iface_mlx5 = ucs_derived_of(iface, uct_rc_mlx5_iface_t);
         {
@@ -103,26 +103,52 @@ uct_rc_mlx5_ep_put_short_inline(uct_ep_h tl_ep, const void *buffer, unsigned len
             printf("%lf ns\n", (double)timer / ((double)ucs_time_sec_value()/1000000000) / 10000 );
         }
 
-        printf("AVG Latency of NO-OP from # of requests\n");
-        for(n_to_post = 1; n_to_post <= 1024; n_to_post *= 2){
-            ucs_time_t timer = ucs_get_time();
-            for(i = 0; i < 1000; i++){
-                //int start_cntr = my_tx_compl_counter;
-                /* Post n_to_post add operations */
-                for(j=0; j < n_to_post; j++) {
-                    uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
-                                                 &ep->super.txqp, &ep->tx.wq,
-                                                 MLX5_OPCODE_NOP, NULL, 0,
-                                                 0, 0, 0,
-                                                 0, 0,
-                                                 NULL, NULL, 0, 0,
-                                                 INT_MAX);
-                }
+        printf("Warmup\n");
+        for(i = 0; i < 1000; i++){
+            //int start_cntr = my_tx_compl_counter;
+            /* Post n_to_post add operations */
+            for(j=0; j < 128; j++) {
+                uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+                                             &ep->super.txqp, &ep->tx.wq,
+                                             MLX5_OPCODE_NOP, NULL, 0,
+                                             0, 0, 0,
+                                             0, 0,
+                                             NULL, NULL, 0, 0,
+                                             INT_MAX);
             }
-            timer = ucs_get_time() - timer;
-            printf("%d : %lf us (%ld)\n", n_to_post,
-                   (double)timer / ((double)ucs_time_sec_value()/1000000) / 1000 / n_to_post,
-                   (unsigned long)timer);
+            /* Sleep 10 us to let WCBs to restore */
+            struct timespec ts = { 0, 100000 };
+            nanosleep(&ts, NULL);
+        }
+
+        int l;
+        for(l = 1; l < 10000; l*=10){
+            printf("AVG Latency of NO-OP from # of requests, sleep time = %d\n", l);
+            int nreqs[] = { 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 32, 64, 128, 512, 0 };
+            for(n_to_post = nreqs; *n_to_post; n_to_post++){
+                uint64_t latency = 0;
+                for(i = 0; i < 1000; i++){
+                    //int start_cntr = my_tx_compl_counter;
+                    /* Post n_to_post add operations */
+                    ucs_time_t timer = ucs_get_time();
+                    for(j=0; j < *n_to_post; j++) {
+                        uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
+                                                     &ep->super.txqp, &ep->tx.wq,
+                                                     MLX5_OPCODE_NOP, NULL, 0,
+                                                     0, 0, 0,
+                                                     0, 0,
+                                                     NULL, NULL, 0, 0,
+                                                     INT_MAX);
+                    }
+                    latency += ucs_get_time() - timer;
+                    /* Sleep 10 us to let WCBs to restore */
+                    struct timespec ts = { 0, l };
+                    nanosleep(&ts, NULL);
+                }
+                printf("%d : %lf us (%ld)\n", *n_to_post,
+                       (double)latency / ((double)ucs_time_sec_value()/1000000) / 1000 / *n_to_post,
+                       (unsigned long)latency);
+            }
         }
     }
 

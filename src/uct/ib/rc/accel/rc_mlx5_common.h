@@ -506,7 +506,7 @@ uct_rc_mlx5_common_post_send(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
                              uct_ib_log_sge_t *log_sge)
 {
     struct mlx5_wqe_ctrl_seg *ctrl;
-    uint16_t res_count;
+    //uint16_t res_count;
 
     ctrl = txwq->curr;
 
@@ -530,11 +530,11 @@ uct_rc_mlx5_common_post_send(uct_rc_iface_t *iface, enum ibv_qp_type qp_type,
                        ((opcode == MLX5_OPCODE_SEND) || (opcode == MLX5_OPCODE_SEND_IMM)) ?
                        uct_rc_mlx5_common_packet_dump : NULL);
 
-    res_count = uct_ib_mlx5_post_send(txwq, ctrl, wqe_size);
+    /*res_count = */ uct_ib_mlx5_post_send(txwq, ctrl, wqe_size);
     if (fm_ce_se & MLX5_WQE_CTRL_CQ_UPDATE) {
         txwq->sig_pi = txwq->prev_sw_pi;
     }
-    uct_rc_txqp_posted(txqp, iface, res_count, fm_ce_se & MLX5_WQE_CTRL_CQ_UPDATE);
+    //uct_rc_txqp_posted(txqp, iface, res_count, fm_ce_se & MLX5_WQE_CTRL_CQ_UPDATE);
 }
 
 
