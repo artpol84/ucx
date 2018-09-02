@@ -432,6 +432,62 @@ uct_ib_mlx5_post_send(uct_ib_mlx5_txwq_t *wq,
 }
 
 
+static UCS_F_ALWAYS_INLINE uint16_t
+uct_ib_mlx5_post_send_DB(uct_ib_mlx5_txwq_t *wq,
+                      struct mlx5_wqe_ctrl_seg *ctrl, unsigned wqe_size)
+{
+    uint16_t sw_pi, num_bb , res_count;
+    void *src, *dst;
+
+    ucs_assert(((unsigned long)ctrl % UCT_IB_MLX5_WQE_SEG_SIZE) == 0);
+    num_bb  = ucs_div_round_up(wqe_size, MLX5_SEND_WQE_BB);
+    sw_pi   = wq->sw_pi;
+
+    uct_ib_mlx5_txwq_validate(wq, num_bb);
+    /* TODO Put memory store fence here too, to prevent WC being flushed after DBrec */
+    ucs_memory_cpu_store_fence();
+
+    /* Write doorbell record */
+    *wq->dbrec = htonl(sw_pi += num_bb);
+
+    dst = wq->bf->reg.ptr;
+    src = ctrl;
+
+    static int cntr = 1;
+    cntr--;
+    if( !cntr ){
+        /* Make sure that doorbell record is written before ringing the doorbell */
+        ucs_memory_bus_store_fence();
+        /* DB copy */
+        *(volatile uint64_t *)dst = *(volatile uint64_t *)src;
+        ucs_memory_bus_store_fence();
+        extern int _db_opt_num_to_skip;
+        cntr = _db_opt_num_to_skip;
+    }
+    src = uct_ib_mlx5_txwq_wrap_any(wq, src + (num_bb * MLX5_SEND_WQE_BB));
+
+
+    /* We don't want the compiler to reorder instructions and hurt latency */
+    ucs_compiler_fence();
+
+    /*
+     * Advance queue pointer.
+     * We return the number of BBs the *previous* WQE has consumed, since CQEs
+     * are reporting the index of the first BB rather than the last. We have
+     * reserved QP space for at least UCT_IB_MLX5_MAX_BB to accommodate.
+     * */
+    ucs_assert(ctrl == wq->curr);
+    res_count       = wq->sw_pi - wq->prev_sw_pi;
+    wq->curr        = src;
+    wq->prev_sw_pi += res_count;
+    ucs_assert(wq->prev_sw_pi == wq->sw_pi);
+    wq->sw_pi       = sw_pi;
+
+    /* Flip BF register */
+    wq->bf->reg.addr ^= UCT_IB_MLX5_BF_REG_SIZE;
+    return res_count;
+}
+
 static inline uct_ib_mlx5_srq_seg_t *
 uct_ib_mlx5_srq_get_wqe(uct_ib_mlx5_srq_t *srq, uint16_t index)
 {

@@ -901,6 +901,8 @@ void uct_rc_mlx5_txqp_dptr_post_iov(uct_rc_iface_t *iface, enum ibv_qp_type qp_t
                                  max_log_sge, NULL);
 }
 
+#include "config.h"
+
 #if IBV_EXP_HW_TM
 
 static UCS_F_ALWAYS_INLINE void
@@ -1032,7 +1034,7 @@ uct_rc_mlx5_iface_common_post_srq_op(uct_rc_mlx5_cmd_wq_t *cmd_wq,
                                      unsigned extra_wqe_size, unsigned op_code,
                                      uint16_t next_idx, unsigned unexp_cnt,
                                      uct_tag_t tag, uct_tag_t tag_mask,
-                                     unsigned tm_flags)
+                                     unsigned tm_flags, int special_path)
 {
     uct_ib_mlx5_txwq_t       *txwq = &cmd_wq->super;
     struct mlx5_wqe_ctrl_seg *ctrl = txwq->curr; /* 16 bytes */
@@ -1049,7 +1051,11 @@ uct_rc_mlx5_iface_common_post_srq_op(uct_rc_mlx5_cmd_wq_t *cmd_wq,
     uct_rc_mlx5_set_tm_seg(txwq, tm, op_code, next_idx, unexp_cnt,
                            tag, tag_mask, tm_flags);
 
-    uct_ib_mlx5_post_send(txwq, ctrl, wqe_size);
+    if( special_path ) {
+        uct_ib_mlx5_post_send_DB(txwq, ctrl, wqe_size);
+    } else {
+        uct_ib_mlx5_post_send(txwq, ctrl, wqe_size);
+    }
 }
 
 
@@ -1095,7 +1101,7 @@ uct_rc_mlx5_iface_common_tag_recv(uct_rc_mlx5_iface_common_t *iface,
                                          rc_iface->tm.unexpected_cnt, tag,
                                          tag_mask,
                                          UCT_RC_MLX5_SRQ_FLAG_TM_CQE_REQ |
-                                         UCT_RC_MLX5_SRQ_FLAG_TM_SW_CNT);
+                                         UCT_RC_MLX5_SRQ_FLAG_TM_SW_CNT, 1);
     return UCS_OK;
 }
 
@@ -1122,7 +1128,7 @@ uct_rc_mlx5_iface_common_tag_recv_cancel(uct_rc_mlx5_iface_common_t *iface,
     uct_rc_mlx5_iface_common_post_srq_op(&iface->tm.cmd_wq, 0,
                                          UCT_RC_MLX5_TM_OPCODE_REMOVE, index,
                                          rc_iface->tm.unexpected_cnt, 0ul, 0ul,
-                                         flags);
+                                         flags, 0);
     return UCS_OK;
 }
 
@@ -1219,7 +1225,7 @@ uct_rc_mlx5_iface_unexp_consumed(uct_rc_mlx5_iface_common_t *mlx5_common_iface,
         uct_rc_mlx5_iface_common_post_srq_op(&mlx5_common_iface->tm.cmd_wq, 0,
                                              UCT_RC_MLX5_TM_OPCODE_NOP, 0,
                                              rc_iface->tm.unexpected_cnt, 0ul, 0ul,
-                                             UCT_RC_MLX5_SRQ_FLAG_TM_SW_CNT);
+                                             UCT_RC_MLX5_SRQ_FLAG_TM_SW_CNT, 0);
     }
 }
 

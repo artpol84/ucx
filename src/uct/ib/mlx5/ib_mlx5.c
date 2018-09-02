@@ -124,11 +124,17 @@ static int uct_ib_mlx5_bf_cmp(uct_ib_mlx5_bf_t *bf, uintptr_t addr, unsigned bf_
     return (bf->reg.addr & ~UCT_IB_MLX5_BF_REG_SIZE) == (addr & ~UCT_IB_MLX5_BF_REG_SIZE);
 }
 
+/* Set 8 by default as it was the best performer */
+int _db_opt_num_to_skip = 8;
 static ucs_status_t uct_ib_mlx5_bf_init(uct_ib_mlx5_bf_t *bf, uintptr_t addr,
                                         unsigned bf_size)
 {
     bf->reg.addr  = addr;
     bf->enable_bf = bf_size;
+    char *ptr = getenv("DB_NUM_TO_SKIP");
+    if( ptr ){
+        _db_opt_num_to_skip = atoi(ptr);
+    }
     return UCS_OK;
 }
 
