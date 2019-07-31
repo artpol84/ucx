@@ -229,13 +229,18 @@ uct_dc_mlx5_poll_tx(uct_dc_mlx5_iface_t *iface)
 static unsigned uct_dc_mlx5_iface_progress(void *arg)
 {
     uct_dc_mlx5_iface_t *iface = arg;
-    unsigned count;
+    unsigned count = 0, ret = 0;
 
-    count = uct_rc_mlx5_iface_common_poll_rx(&iface->super, 0);
-    if (count > 0) {
-        return count;
-    }
-    return uct_dc_mlx5_poll_tx(iface);
+    do {
+        ret = uct_rc_mlx5_iface_common_poll_rx(&iface->super, 0);
+        count += ret;
+    } while (ret && count < 32);
+
+    do {
+        ret = uct_dc_mlx5_poll_tx(iface);
+        count += ret;
+    } while (ret && count < 32);
+    return count;
 }
 
 #if IBV_EXP_HW_TM_DC

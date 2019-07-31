@@ -115,13 +115,18 @@ uct_rc_mlx5_iface_poll_tx(uct_rc_mlx5_iface_common_t *iface)
 unsigned uct_rc_mlx5_iface_progress(void *arg)
 {
     uct_rc_mlx5_iface_common_t *iface = arg;
-    unsigned count;
+    unsigned count = 0, ret = 0;
 
-    count = uct_rc_mlx5_iface_common_poll_rx(iface, 0);
-    if (count > 0) {
-        return count;
-    }
-    return uct_rc_mlx5_iface_poll_tx(iface);
+    do {
+        ret = uct_rc_mlx5_iface_common_poll_rx(iface, 0);
+        count += ret;
+    } while (ret && count < 32);
+
+    do {
+        ret = uct_rc_mlx5_iface_poll_tx(iface);
+        count += ret;
+    } while (ret && count < 32);
+    return count;
 }
 
 static ucs_status_t uct_rc_mlx5_iface_query(uct_iface_h tl_iface, uct_iface_attr_t *iface_attr)
