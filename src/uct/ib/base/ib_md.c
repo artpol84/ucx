@@ -45,6 +45,7 @@ static UCS_CONFIG_DEFINE_ARRAY(pci_bw,
                                sizeof(ucs_config_bw_spec_t),
                                UCS_CONFIG_TYPE_BW_SPEC);
 
+unsigned _debug_ucx_progres_cnt = 0;
 
 static ucs_config_field_t uct_ib_md_config_table[] = {
     {"", "", NULL,
@@ -149,6 +150,10 @@ static ucs_config_field_t uct_ib_md_config_table[] = {
     {"MLX5_DEVX", "try",
      "DEVX support\n",
      ucs_offsetof(uct_ib_md_config_t, devx), UCS_CONFIG_TYPE_TERNARY},
+
+    {"MLX5_PROGRESS_CNT", "1",
+     "DEVX support\n",
+     ucs_offsetof(uct_ib_md_config_t, progress_cnt), UCS_CONFIG_TYPE_UINT},
 
     {NULL}
 };
@@ -1121,6 +1126,9 @@ ucs_status_t uct_ib_md_open(uct_component_t *component, const char *md_name,
     int i, num_devices;
 
     ucs_trace("opening IB device %s", md_name);
+
+    _debug_ucx_progres_cnt = md_config->progress_cnt;
+    printf("Set the progress count to %u\n", md_config->progress_cnt);
 
 #if !HAVE_DEVX
     if (md_config->devx == UCS_YES) {

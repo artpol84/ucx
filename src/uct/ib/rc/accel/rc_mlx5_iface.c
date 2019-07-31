@@ -116,16 +116,17 @@ unsigned uct_rc_mlx5_iface_progress(void *arg)
 {
     uct_rc_mlx5_iface_common_t *iface = arg;
     unsigned count = 0, ret = 0;
+    extern unsigned _debug_ucx_progres_cnt;
 
     do {
         ret = uct_rc_mlx5_iface_common_poll_rx(iface, 0);
         count += ret;
-    } while (ret && count < 32);
+    } while (ret && count < _debug_ucx_progres_cnt);
 
     do {
         ret = uct_rc_mlx5_iface_poll_tx(iface);
         count += ret;
-    } while (ret && count < 32);
+    } while (ret && count < _debug_ucx_progres_cnt);
     return count;
 }
 
