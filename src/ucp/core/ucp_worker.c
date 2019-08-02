@@ -30,6 +30,69 @@
 #include <sys/epoll.h>
 
 
+volatile int32_t lock_profiles_count = 0;
+volatile __thread int32_t lock_profile_index_loc = -1;
+locking_profile_t lock_profiles[1024] = { { 0 } };
+
+void ucx_lock_dbg_report()
+{
+    locking_profile_t profile = { 0 };
+    int i;
+    for(i=0; i<lock_profiles_count; i++) {
+        profile.lock_count += lock_profiles[i].lock_count;
+        profile.unlock_count += lock_profiles[i].unlock_count;
+        profile.work_count += lock_profiles[i].work_count;
+        profile.lock_cycles += lock_profiles[i].lock_cycles;
+        profile.unlock_cycles += lock_profiles[i].unlock_cycles;
+        profile.work_cycles += lock_profiles[i].work_cycles;
+    }
+
+    char *ptr = getenv("UCX_LOCK_PROFILE_PATH");
+    if(NULL == ptr) {
+        /* No profiling collection was requested */
+        return;
+    }
+
+    char path[1024], hname[256];
+    gethostname(hname, 256);
+    sprintf(path, "%s/rank.%s.%d", ptr, hname, getpid());
+    FILE *fp = fopen(path, "w");
+    if( NULL == fp) {
+        ucs_error("Cannot open \"%s\" for writing\n", ptr);
+        return;
+    }
+
+    fprintf(fp, "Cumulative info:\n");
+    fprintf(fp, "\tLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+            profile.lock_count, profile.lock_cycles,
+            profile.lock_cycles/ucs_arch_get_clocks_per_sec());
+
+    fprintf(fp, "\tWORK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+            profile.work_count, profile.work_cycles,
+            profile.work_cycles/ucs_arch_get_clocks_per_sec());
+
+    fprintf(fp, "\tunLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+            profile.unlock_count, profile.unlock_cycles,
+            profile.unlock_cycles/ucs_arch_get_clocks_per_sec());
+
+    fprintf(fp, "Per-thread info:\n");
+    for(i=0; i < lock_profiles_count; i++) {
+        fprintf(fp, "Thread #%d:\n", i);
+        fprintf(fp, "\tLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+                lock_profiles[i].lock_count, lock_profiles[i].lock_cycles,
+                lock_profiles[i].lock_cycles/ucs_arch_get_clocks_per_sec());
+
+        fprintf(fp, "\tWORK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+                lock_profiles[i].work_count, lock_profiles[i].work_cycles,
+                lock_profiles[i].work_cycles/ucs_arch_get_clocks_per_sec());
+
+        fprintf(fp, "\tunLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
+                lock_profiles[i].unlock_count, lock_profiles[i].unlock_cycles,
+                lock_profiles[i].unlock_cycles/ucs_arch_get_clocks_per_sec());
+    }
+    fclose(fp);
+}
+
 #define UCP_WORKER_HEADROOM_SIZE \
     (sizeof(ucp_recv_desc_t) + UCP_WORKER_HEADROOM_PRIV_SIZE)
 
@@ -1726,6 +1789,8 @@ static void ucp_worker_destroy_ep_configs(ucp_worker_h worker)
 void ucp_worker_destroy(ucp_worker_h worker)
 {
     ucs_trace_func("worker=%p", worker);
+
+    ucx_lock_dbg_report();
 
     UCS_ASYNC_BLOCK(&worker->async);
     ucs_free(worker->am_cbs);

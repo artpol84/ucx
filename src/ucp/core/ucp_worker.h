@@ -11,6 +11,8 @@
 #include "ucp_ep.h"
 #include "ucp_context.h"
 #include "ucp_thread.h"
+#include "config.h"
+#include "ucs/arch/atomic.h"
 
 #include <ucp/proto/proto.h>
 #include <ucp/tag/tag_match.h>
@@ -29,19 +31,85 @@
 
 #if ENABLE_MT
 
+typedef struct {
+    uint64_t start;
+    uint64_t lock_cycles;
+    uint64_t lock_count;
+    uint64_t work_cycles;
+    uint64_t work_count;
+    uint64_t unlock_cycles;
+    uint64_t unlock_count;
+} locking_profile_t;
+
+extern volatile int32_t lock_profiles_count;
+extern volatile __thread int32_t lock_profile_index_loc;
+extern locking_profile_t lock_profiles[1024];
+
+void ucx_lock_dbg_report();
+
+static inline locking_profile_t *ucx_lock_dbg_thread_local()
+{
+    if( 0 > lock_profile_index_loc ) {
+        /* initialize the profile */
+        lock_profile_index_loc =
+                ucs_atomic_fadd32((volatile uint32_t*)&lock_profiles_count, 1);
+//        printf("Updated info: count=%u, index=%u\n",
+//                        lock_profiles_count, lock_profile_index_loc);
+    }
+    return &lock_profiles[lock_profile_index_loc];
+}
+
+static inline void enter_lock()
+{
+    locking_profile_t *s = ucx_lock_dbg_thread_local();
+    ucs_assert(s->start == 0);
+    s->start = ucs_arch_read_hres_clock();
+}
+
+static inline void exit_lock()
+{
+    locking_profile_t *s = ucx_lock_dbg_thread_local();
+    uint64_t ts = ucs_arch_read_hres_clock();
+
+    s->lock_cycles += (ts - s->start);
+    s->lock_count++;
+    s->start = ts;
+}
+
+static inline void enter_unlock(){
+    locking_profile_t *s = ucx_lock_dbg_thread_local();
+    uint64_t ts = ucs_arch_read_hres_clock();
+    s->work_cycles += (ts - s->start);
+    s->work_count++;
+    s->start = ts;
+}
+
+
+static inline void exit_unlock()
+{
+    locking_profile_t *s = ucx_lock_dbg_thread_local();
+    s->unlock_cycles += (ucs_arch_read_hres_clock() - s->start);
+    s->unlock_count++;
+    s->start = 0;
+}
+
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
+        enter_lock();                                                   \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
             UCS_ASYNC_BLOCK(&(_worker)->async);                         \
         }                                                               \
+        exit_lock();                                                    \
     } while (0)
 
 
 #define UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(_worker)                  \
     do {                                                                \
+        enter_unlock();                                                 \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
             UCS_ASYNC_UNBLOCK(&(_worker)->async);                       \
         }                                                               \
+        exit_unlock();                                                  \
     } while (0)
 
 
