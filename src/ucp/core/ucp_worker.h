@@ -57,6 +57,7 @@ static inline locking_profile_t *ucx_lock_dbg_thread_local()
     return &lock_profiles[lock_profile_index_loc];
 }
 
+/*
 static inline void
 spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
 {
@@ -134,6 +135,9 @@ static inline void lock_profile_spinlock(pthread_spinlock_t *l)
     }
     prof->invoked++;
 }
+*/
+
+void lock_profile_spinlock(pthread_spinlock_t *l);
 
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
