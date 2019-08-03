@@ -137,12 +137,12 @@ static inline void lock_profile_spinlock(pthread_spinlock_t *l)
 }
 */
 
-void lock_profile_spinlock(pthread_spinlock_t *l);
+void lock_profile_spinlock(ucs_spinlock_t *l);
 
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            lock_profile_spinlock(&(_worker)->async.thread.spinlock.lock);   \
+            lock_profile_spinlock(&(_worker)->async.thread.spinlock);   \
         }                                                               \
     } while (0)
 

@@ -96,11 +96,21 @@ spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
     }
 }
 
-void lock_profile_spinlock(pthread_spinlock_t *l)
+void lock_profile_spinlock(ucs_spinlock_t *lock)
 {
     uint64_t cycles, count;
     locking_profile_t *prof = ucx_lock_dbg_thread_local();
-    spinlock_prof(l, &cycles, &count);
+    pthread_t self = pthread_self();
+
+    if (ucs_spin_is_owner(lock, self)) {
+        ++lock->count;
+        return;
+    }
+
+    lock->owner = self;
+    ++lock->count;
+
+    spinlock_prof(&lock->lock, &cycles, &count);
     prof->spins += count;
     if( prof->spins_max < count ) {
         prof->spins_max = count;
