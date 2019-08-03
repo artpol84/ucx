@@ -39,12 +39,15 @@ void ucx_lock_dbg_report()
     locking_profile_t profile = { 0 };
     int i;
     for(i=0; i<lock_profiles_count; i++) {
-        profile.lock_count += lock_profiles[i].lock_count;
-        profile.unlock_count += lock_profiles[i].unlock_count;
-        profile.work_count += lock_profiles[i].work_count;
-        profile.lock_cycles += lock_profiles[i].lock_cycles;
-        profile.unlock_cycles += lock_profiles[i].unlock_cycles;
-        profile.work_cycles += lock_profiles[i].work_cycles;
+        profile.spins += lock_profiles[i].spins;
+        if( profile.spins_max < lock_profiles[i].spins_max) {
+            profile.spins_max = lock_profiles[i].spins_max;
+        }
+        profile.cycles += lock_profiles[i].cycles;
+        if( profile.cycles_max < lock_profiles[i].cycles_max) {
+            profile.cycles_max = lock_profiles[i].cycles_max;
+        }
+        profile.invoked += lock_profiles[i].invoked;
     }
 
     char *ptr = getenv("UCX_LOCK_PROFILE_PATH");
@@ -63,32 +66,47 @@ void ucx_lock_dbg_report()
     }
 
     fprintf(fp, "Cumulative info:\n");
-    fprintf(fp, "\tLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-            profile.lock_count, profile.lock_cycles,
-            profile.lock_cycles/ucs_arch_get_clocks_per_sec());
+    fprintf(fp, "\tinvokations: %lu\n", profile.invoked);
+    fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+            "avg=%lfcyc (%lfus)\n",
+            profile.spins,
+            (double)profile.spins / ucs_arch_get_clocks_per_sec(),
+            profile.spins_max,
+            1E6 * (double)profile.spins_max / ucs_arch_get_clocks_per_sec(),
+            (double)profile.spins / profile.invoked,
+            (double)profile.spins / profile.invoked / ucs_arch_get_clocks_per_sec() * 1E6);
 
-    fprintf(fp, "\tWORK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-            profile.work_count, profile.work_cycles,
-            profile.work_cycles/ucs_arch_get_clocks_per_sec());
+    fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+            "avg=%lfcyc (%lfus)\n",
+            profile.cycles,
+            (double)profile.cycles / ucs_arch_get_clocks_per_sec(),
+            profile.cycles_max,
+            1E6 * (double)profile.cycles_max / ucs_arch_get_clocks_per_sec(),
+            (double)profile.cycles / profile.invoked,
+            (double)profile.cycles / profile.invoked / ucs_arch_get_clocks_per_sec() * 1E6);
 
-    fprintf(fp, "\tunLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-            profile.unlock_count, profile.unlock_cycles,
-            profile.unlock_cycles/ucs_arch_get_clocks_per_sec());
 
     fprintf(fp, "Per-thread info:\n");
     for(i=0; i < lock_profiles_count; i++) {
         fprintf(fp, "Thread #%d:\n", i);
-        fprintf(fp, "\tLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-                lock_profiles[i].lock_count, lock_profiles[i].lock_cycles,
-                lock_profiles[i].lock_cycles/ucs_arch_get_clocks_per_sec());
+        fprintf(fp, "\tinvokations: %lu\n", profile.invoked);
+        fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+                "avg=%lfcyc (%lfus)\n",
+                lock_profiles[i].spins,
+                (double)lock_profiles[i].spins / ucs_arch_get_clocks_per_sec(),
+                lock_profiles[i].spins_max,
+                1E6 * (double)lock_profiles[i].spins_max / ucs_arch_get_clocks_per_sec(),
+                (double)lock_profiles[i].spins / lock_profiles[i].invoked,
+                (double)lock_profiles[i].spins / lock_profiles[i].invoked / ucs_arch_get_clocks_per_sec() * 1E6);
 
-        fprintf(fp, "\tWORK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-                lock_profiles[i].work_count, lock_profiles[i].work_cycles,
-                lock_profiles[i].work_cycles/ucs_arch_get_clocks_per_sec());
-
-        fprintf(fp, "\tunLOCK:\tcnt = %lu, cycles  =%lu, time = %lf\n",
-                lock_profiles[i].unlock_count, lock_profiles[i].unlock_cycles,
-                lock_profiles[i].unlock_cycles/ucs_arch_get_clocks_per_sec());
+        fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+                "avg=%lfcyc (%lfus)\n",
+                lock_profiles[i].cycles,
+                (double)lock_profiles[i].cycles / ucs_arch_get_clocks_per_sec(),
+                lock_profiles[i].cycles_max,
+                1E6 * (double)lock_profiles[i].cycles_max / ucs_arch_get_clocks_per_sec(),
+                (double)lock_profiles[i].cycles / lock_profiles[i].invoked,
+                (double)lock_profiles[i].cycles / lock_profiles[i].invoked / ucs_arch_get_clocks_per_sec() * 1E6);
     }
     fclose(fp);
 }

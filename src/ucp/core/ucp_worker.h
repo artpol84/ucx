@@ -32,13 +32,11 @@
 #if ENABLE_MT
 
 typedef struct {
-    uint64_t start;
-    uint64_t lock_cycles;
-    uint64_t lock_count;
-    uint64_t work_cycles;
-    uint64_t work_count;
-    uint64_t unlock_cycles;
-    uint64_t unlock_count;
+    uint64_t spins;
+    uint64_t spins_max;
+    uint64_t cycles;
+    uint64_t cycles_max;
+    uint64_t invoked;
 } locking_profile_t;
 
 extern volatile int32_t lock_profiles_count;
@@ -59,57 +57,97 @@ static inline locking_profile_t *ucx_lock_dbg_thread_local()
     return &lock_profiles[lock_profile_index_loc];
 }
 
-static inline void enter_lock()
+static inline void
+spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
 {
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    ucs_assert(s->start == 0);
-    s->start = ucs_arch_read_hres_clock();
+    uint64_t ts1, ts2, cntr = 0;
+
+    asm volatile (
+        // Reset $r10 and $rax in case we acquire the lock without spinning
+        "    xor %%r10, %%r10\n"
+        "    xor %%rax, %%rax\n"
+
+        // Try to obtain the lock and exit if successful (*lock == 0)
+        "    lock decl (%[lock])\n"
+        "    je slk_exit_%=\n"
+
+        // If we are going to spin - get the timestamp & store in $r10
+        "    rdtsc\n"
+        "    shl $32, %%rdx\n"
+        "    or %%rax, %%rdx\n"
+        "    mov %%rdx, %%r10\n"
+
+        // reset $rax as we will use it tp count spin iterations
+        "    xor %%rax, %%rax\n"
+
+        // Jump to the spinning loop
+        "    jmp slk_sleep_%=\n"
+
+         // Acquire attempt
+        "slk_acquire_%=:\n"
+        "    lock decl (%[lock])\n"
+        "    jne slk_sleep_%=\n"
+        "    jmp slk_exit_%=\n"
+
+        // Spinning loop
+        "slk_sleep_%=:\n"
+        "    pause\n"
+        "    incq %%rax\n"
+        "    cmpl   $0x0, (%[lock])\n"
+        "    jg     slk_acquire_%=\n"
+        "    jmp    slk_sleep_%=\n"
+
+        // Exit sequence
+        "slk_exit_%=:\n"
+        // Get the spin stop timestamp
+        "    mov %%rax, (%[cntr])\n"
+        "    xor %%rdx, %%rdx\n"
+        "    xor %%rax, %%rax\n"
+        "    rdtsc\n"
+        "    shl $32, %%rdx\n"
+        "    or %%rax, %%rdx\n"
+        "    mov %%rdx, (%[ts2])\n"
+        "    mov %%r10, (%[ts1])\n"
+        :
+        : [lock] "r" (l), [ts1] "r" (&ts1), [ts2] "r" (&ts2), [cntr] "r" (&cntr)
+        : "memory", "rax", "rdx", "r10", "rcx");
+
+    *_cycles = 0;
+    *_cnt = cntr;
+    if (ts1 != 0) {
+        *_cycles = ts2 - ts1;
+    }
 }
 
-static inline void exit_lock()
+static inline void lock_profile_spinlock(pthread_spinlock_t *l)
 {
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    uint64_t ts = ucs_arch_read_hres_clock();
-
-    s->lock_cycles += (ts - s->start);
-    s->lock_count++;
-    s->start = ts;
-}
-
-static inline void enter_unlock(){
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    uint64_t ts = ucs_arch_read_hres_clock();
-    s->work_cycles += (ts - s->start);
-    s->work_count++;
-    s->start = ts;
-}
-
-
-static inline void exit_unlock()
-{
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    s->unlock_cycles += (ucs_arch_read_hres_clock() - s->start);
-    s->unlock_count++;
-    s->start = 0;
+    uint64_t cycles, count;
+    locking_profile_t *prof = ucx_lock_dbg_thread_local();
+    spinlock_prof(l, &cycles, &count);
+    prof->spins += count;
+    if( prof->spins_max < count ) {
+        prof->spins_max = count;
+    }
+    prof->cycles += cycles;
+    if( prof->cycles_max < count ) {
+        prof->cycles_max = count;
+    }
+    prof->invoked++;
 }
 
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
-        enter_lock();                                                   \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            UCS_ASYNC_BLOCK(&(_worker)->async);                         \
+            lock_profile_spinlock(&(_worker)->async.thread.spinlock.lock);   \
         }                                                               \
-        exit_lock();                                                    \
     } while (0)
 
 
 #define UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(_worker)                  \
     do {                                                                \
-        enter_unlock();                                                 \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
             UCS_ASYNC_UNBLOCK(&(_worker)->async);                       \
         }                                                               \
-        exit_unlock();                                                  \
     } while (0)
 
 
