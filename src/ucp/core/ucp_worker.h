@@ -32,13 +32,11 @@
 #if ENABLE_MT
 
 typedef struct {
-    uint64_t start;
-    uint64_t lock_cycles;
-    uint64_t lock_count;
-    uint64_t work_cycles;
-    uint64_t work_count;
-    uint64_t unlock_cycles;
-    uint64_t unlock_count;
+    uint64_t spins;
+    uint64_t spins_max;
+    uint64_t cycles;
+    uint64_t cycles_max;
+    uint64_t invoked;
 } locking_profile_t;
 
 extern volatile int32_t lock_profiles_count;
@@ -53,63 +51,131 @@ static inline locking_profile_t *ucx_lock_dbg_thread_local()
         /* initialize the profile */
         lock_profile_index_loc =
                 ucs_atomic_fadd32((volatile uint32_t*)&lock_profiles_count, 1);
-//        printf("Updated info: count=%u, index=%u\n",
-//                        lock_profiles_count, lock_profile_index_loc);
     }
     return &lock_profiles[lock_profile_index_loc];
 }
 
-static inline void enter_lock()
+//#define UCX_SPLK_PROF_TS 0
+
+static inline void
+spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
 {
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    ucs_assert(s->start == 0);
-    s->start = ucs_arch_read_hres_clock();
+#if UCX_SPLK_PROF_TS
+    uint64_t ts1, ts2;
+#endif
+    uint64_t cntr = 0;
+
+    asm volatile (
+        // Reset $r10 and $rax in case we acquire the lock without spinning
+#if UCX_SPLK_PROF_TS
+        "    xor %%r10, %%r10\n"
+#endif
+        "    xor %%rax, %%rax\n"
+
+        // Try to obtain the lock and exit if successful (*lock == 0)
+        "    lock decl (%[lock])\n"
+        "    je slk_exit_%=\n"
+
+#if UCX_SPLK_PROF_TS
+        // If we are going to spin - get the timestamp & store in $r10
+        "    rdtsc\n"
+        "    shl $32, %%rdx\n"
+        "    or %%rax, %%rdx\n"
+        "    mov %%rdx, %%r10\n"
+#endif
+
+        // reset $rax as we will use it tp count spin iterations
+        "    xor %%rax, %%rax\n"
+
+        // Jump to the spinning loop
+        "    jmp slk_sleep_%=\n"
+
+         // Acquire attempt
+        "slk_acquire_%=:\n"
+        "    lock decl (%[lock])\n"
+        "    jne slk_sleep_%=\n"
+        "    jmp slk_exit_%=\n"
+
+        // Spinning loop
+        "slk_sleep_%=:\n"
+        "    pause\n"
+        "    incq %%rax\n"
+        "    cmpl   $0x0, (%[lock])\n"
+        "    jg     slk_acquire_%=\n"
+        "    jmp    slk_sleep_%=\n"
+
+        // Exit sequence
+        "slk_exit_%=:\n"
+        // Get the spin stop timestamp
+        "    mov %%rax, (%[cntr])\n"
+#if UCX_SPLK_PROF_TS
+        "    rdtsc\n"
+        "    shl $32, %%rdx\n"
+        "    or %%rax, %%rdx\n"
+        "    mov %%rdx, (%[ts2])\n"
+        "    mov %%r10, (%[ts1])\n"
+#endif
+        :
+        : [lock] "r" (l), [cntr] "r" (&cntr)
+#if UCX_SPLK_PROF_TS
+          , [ts1] "r" (&ts1), [ts2] "r" (&ts2)
+#endif
+        : "memory", "rax"
+#if UCX_SPLK_PROF_TS
+                , "rdx", "r10"
+#endif
+        );
+    *_cnt = cntr;
+
+    *_cycles = 0;
+#if UCX_SPLK_PROF_TS
+    if (ts1 != 0) {
+        *_cycles = ts2 - ts1;
+    }
+#endif
 }
 
-static inline void exit_lock()
+static inline void lock_profile_spinlock(ucs_spinlock_t *lock)
 {
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    uint64_t ts = ucs_arch_read_hres_clock();
+    uint64_t cycles, count;
+    locking_profile_t *prof = ucx_lock_dbg_thread_local();
+    pthread_t self = pthread_self();
 
-    s->lock_cycles += (ts - s->start);
-    s->lock_count++;
-    s->start = ts;
-}
+    if (ucs_spin_is_owner(lock, self)) {
+        ++lock->count;
+        return;
+    }
 
-static inline void enter_unlock(){
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    uint64_t ts = ucs_arch_read_hres_clock();
-    s->work_cycles += (ts - s->start);
-    s->work_count++;
-    s->start = ts;
-}
+    spinlock_prof(&lock->lock, &cycles, &count);
 
+    lock->owner = self;
+    ++lock->count;
 
-static inline void exit_unlock()
-{
-    locking_profile_t *s = ucx_lock_dbg_thread_local();
-    s->unlock_cycles += (ucs_arch_read_hres_clock() - s->start);
-    s->unlock_count++;
-    s->start = 0;
+    /* Profile part */
+    prof->spins += count;
+    if( prof->spins_max < count ) {
+        prof->spins_max = count;
+    }
+    prof->cycles += cycles;
+    if( prof->cycles_max < count ) {
+        prof->cycles_max = count;
+    }
+    prof->invoked++;
 }
 
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
-        enter_lock();                                                   \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            UCS_ASYNC_BLOCK(&(_worker)->async);                         \
+            lock_profile_spinlock(&(_worker)->async.thread.spinlock);   \
         }                                                               \
-        exit_lock();                                                    \
     } while (0)
 
 
 #define UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(_worker)                  \
     do {                                                                \
-        enter_unlock();                                                 \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
             UCS_ASYNC_UNBLOCK(&(_worker)->async);                       \
         }                                                               \
-        exit_unlock();                                                  \
     } while (0)
 
 
