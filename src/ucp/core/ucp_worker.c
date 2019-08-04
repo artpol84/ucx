@@ -111,10 +111,12 @@ void lock_profile_spinlock(ucs_spinlock_t *lock)
         return;
     }
 
+    spinlock_prof(&lock->lock, &cycles, &count);
+
     lock->owner = self;
     ++lock->count;
 
-    spinlock_prof(&lock->lock, &cycles, &count);
+    /* Profile part */
     prof->spins += count;
     if( prof->spins_max < count ) {
         prof->spins_max = count;
