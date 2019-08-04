@@ -54,6 +54,7 @@ spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
         "    or %%rax, %%rdx\n"
         "    mov %%rdx, %%r10\n"
 
+
         // reset $rax as we will use it tp count spin iterations
         "    xor %%rax, %%rax\n"
 
@@ -176,14 +177,10 @@ void ucx_lock_dbg_report()
     for(i=0; i < lock_profiles_count; i++) {
         fprintf(fp, "Thread #%d:\n", i);
         fprintf(fp, "\tinvokations: %lu\n", lock_profiles[i].invoked);
-        fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
-                "avg=%lfcyc (%lfus)\n",
+        fprintf(fp, "\tspins: tot=%lu, max=%lu, avg=%lf\n",
                 lock_profiles[i].spins,
-                (double)lock_profiles[i].spins / ucs_arch_get_clocks_per_sec(),
                 lock_profiles[i].spins_max,
-                1E6 * (double)lock_profiles[i].spins_max / ucs_arch_get_clocks_per_sec(),
-                (double)lock_profiles[i].spins / lock_profiles[i].invoked,
-                (double)lock_profiles[i].spins / lock_profiles[i].invoked / ucs_arch_get_clocks_per_sec() * 1E6);
+                (double)lock_profiles[i].spins / lock_profiles[i].invoked);
 
         fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
                 "avg=%lfcyc (%lfus)\n",
