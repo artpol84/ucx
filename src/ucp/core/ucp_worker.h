@@ -55,7 +55,7 @@ static inline locking_profile_t *ucx_lock_dbg_thread_local()
     return &lock_profiles[lock_profile_index_loc];
 }
 
-#define UCX_SPLK_PROF_TS 1
+//#define UCX_SPLK_PROF_TS 0
 
 static inline void
 spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
@@ -75,6 +75,7 @@ spinlock_prof(pthread_spinlock_t *l, uint64_t *_cycles, uint64_t *_cnt)
         // Try to obtain the lock and exit if successful (*lock == 0)
         "    lock decl (%[lock])\n"
         "    je slk_exit_%=\n"
+
 #if UCX_SPLK_PROF_TS
         // If we are going to spin - get the timestamp & store in $r10
         "    rdtsc\n"
