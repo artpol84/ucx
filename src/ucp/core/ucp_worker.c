@@ -102,10 +102,6 @@ void lock_profile_spinlock(ucs_spinlock_t *lock)
     locking_profile_t *prof = ucx_lock_dbg_thread_local();
     pthread_t self = pthread_self();
 
-//    printf("Self = %p, owner=%p, lock = %u, count = %u\n",
-//           (void*)self, (void*)lock->owner, lock->lock, lock->count);
-//    fflush(stdout);
-
     if (ucs_spin_is_owner(lock, self)) {
         ++lock->count;
         return;
@@ -161,14 +157,10 @@ void ucx_lock_dbg_report()
 
     fprintf(fp, "Cumulative info:\n");
     fprintf(fp, "\tinvokations: %lu\n", profile.invoked);
-    fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
-            "avg=%lfcyc (%lfus)\n",
+    fprintf(fp, "\tspins: tot=%lu, max=%lu, avg=%lf\n",
             profile.spins,
-            (double)profile.spins / ucs_arch_get_clocks_per_sec(),
             profile.spins_max,
-            1E6 * (double)profile.spins_max / ucs_arch_get_clocks_per_sec(),
-            (double)profile.spins / profile.invoked,
-            (double)profile.spins / profile.invoked / ucs_arch_get_clocks_per_sec() * 1E6);
+            (double)profile.spins / profile.invoked);
 
     fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
             "avg=%lfcyc (%lfus)\n",
@@ -183,7 +175,7 @@ void ucx_lock_dbg_report()
     fprintf(fp, "Per-thread info:\n");
     for(i=0; i < lock_profiles_count; i++) {
         fprintf(fp, "Thread #%d:\n", i);
-        fprintf(fp, "\tinvokations: %lu\n", profile.invoked);
+        fprintf(fp, "\tinvokations: %lu\n", lock_profiles[i].invoked);
         fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
                 "avg=%lfcyc (%lfus)\n",
                 lock_profiles[i].spins,
