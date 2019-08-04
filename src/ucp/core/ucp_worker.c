@@ -102,8 +102,9 @@ void lock_profile_spinlock(ucs_spinlock_t *lock)
     locking_profile_t *prof = ucx_lock_dbg_thread_local();
     pthread_t self = pthread_self();
 
-    printf("Self = %p, owner=%p, lock = %u, count = %u",
+    printf("Self = %p, owner=%p, lock = %u, count = %u\n",
            (void*)self, (void*)lock->owner, lock->lock, lock->count);
+    fflush(stdout);
 
     if (ucs_spin_is_owner(lock, self)) {
         ++lock->count;
