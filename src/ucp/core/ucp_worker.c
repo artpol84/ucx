@@ -43,10 +43,12 @@ void ucx_lock_dbg_report()
         if( profile.spins_max < lock_profiles[i].spins_max) {
             profile.spins_max = lock_profiles[i].spins_max;
         }
+#if UCX_SPLK_PROF_TS
         profile.cycles += lock_profiles[i].cycles;
         if( profile.cycles_max < lock_profiles[i].cycles_max) {
             profile.cycles_max = lock_profiles[i].cycles_max;
         }
+#endif
         profile.invoked += lock_profiles[i].invoked;
     }
 
@@ -72,6 +74,7 @@ void ucx_lock_dbg_report()
             profile.spins_max,
             (double)profile.spins / profile.invoked);
 
+#if UCX_SPLK_PROF_TS
     fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
             "avg=%lfcyc (%lfus)\n",
             profile.cycles,
@@ -80,7 +83,7 @@ void ucx_lock_dbg_report()
             1E6 * (double)profile.cycles_max / ucs_arch_get_clocks_per_sec(),
             (double)profile.cycles / profile.invoked,
             (double)profile.cycles / profile.invoked / ucs_arch_get_clocks_per_sec() * 1E6);
-
+#endif
 
     fprintf(fp, "Per-thread info:\n");
     for(i=0; i < lock_profiles_count; i++) {
@@ -90,7 +93,7 @@ void ucx_lock_dbg_report()
                 lock_profiles[i].spins,
                 lock_profiles[i].spins_max,
                 (double)lock_profiles[i].spins / lock_profiles[i].invoked);
-
+#if UCX_SPLK_PROF_TS
         fprintf(fp, "\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
                 "avg=%lfcyc (%lfus)\n",
                 lock_profiles[i].cycles,
@@ -99,6 +102,7 @@ void ucx_lock_dbg_report()
                 1E6 * (double)lock_profiles[i].cycles_max / ucs_arch_get_clocks_per_sec(),
                 (double)lock_profiles[i].cycles / lock_profiles[i].invoked,
                 (double)lock_profiles[i].cycles / lock_profiles[i].invoked / ucs_arch_get_clocks_per_sec() * 1E6);
+#endif
     }
     fclose(fp);
 }
