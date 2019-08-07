@@ -12,5 +12,10 @@
 
 basedir=$(cd $(dirname $0) && pwd)
 $basedir/../contrib/configure-release \
+	--enable-optimizations \
+	--disable-logging \
+	--disable-debug \
+	--disable-assertions \
+	--disable-params-check \
 	--enable-mt \
 	"$@"
