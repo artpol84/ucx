@@ -11,6 +11,7 @@
 #include "ucp_ep.h"
 #include "ucp_context.h"
 #include "ucp_thread.h"
+#include "config.h"
 
 #include <ucp/proto/proto.h>
 #include <ucp/tag/tag_match.h>
@@ -32,7 +33,7 @@
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            UCS_ASYNC_BLOCK(&(_worker)->async);                         \
+            ucs_spin_lock(&(_worker)->async.thread.spinlock);   \
         }                                                               \
     } while (0)
 
@@ -40,7 +41,7 @@
 #define UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(_worker)                  \
     do {                                                                \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            UCS_ASYNC_UNBLOCK(&(_worker)->async);                       \
+            ucs_spin_unlock(&(_worker)->async.thread.spinlock);     \
         }                                                               \
     } while (0)
 
