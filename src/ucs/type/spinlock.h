@@ -250,7 +250,7 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
 
     _spinlock_prof(&lock->lock, &cycles, &count);
 
-    lock->owner = op;
+    lock->op_type = op;
     lock->owner = self;
     ++lock->count;
 
