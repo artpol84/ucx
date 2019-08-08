@@ -92,7 +92,7 @@ static inline void ucs_spin_unlock(ucs_spinlock_t *lock)
 
 /* Controls */
 //#define UCX_SPLK_PROF_WAIT_TS 1
-#define UCX_SPLK_PROF_FASTP_TS 1
+//#define UCX_SPLK_PROF_FASTP_TS 1
 
 #ifndef UCX_RDTSCP_INSTR
 #define UCX_RDTSCP_INSTR "rdtscp"
