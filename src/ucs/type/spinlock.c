@@ -13,7 +13,7 @@
 
 volatile int32_t lock_profiles_count = 0;
 volatile __thread int32_t lock_profile_index_loc = -1;
-locking_profile_t lock_profiles[1024] = { { 0 } };
+locking_profile_t lock_profiles[1024] = { { { 0 } } };
 
 static int _get_rank()
 {
@@ -25,16 +25,27 @@ static int _get_rank()
     return rank;
 }
 
-static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,
-                               int spin_divider, int avg_divider, char *prefix)
+static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
 {
-    fprintf(fp, "\tspins: tot=%lu, max=%lu, avg=%lf\n",
+    int avg_divider = 0;
+#if (UCX_SPLK_PROF_WAIT_TS)
+    avg_divider = profile->spinned;
+#elif (UCX_SPLK_PROF_FASTP_TS)
+    avg_divider = profile->invoked;
+#endif
+    (void)avg_divider;
+
+    fprintf(fp,"\t%s\n", prefix);
+    fprintf(fp, "\t\tinvoked: %lu\n", metric->invoked);
+    fprintf(fp, "\t\twaited: %lu\n", metric->spinned);
+
+    fprintf(fp, "\t\tspins: tot=%lu, max=%lu, avg=%lf\n",
             metric->spins,
             metric->spins_max,
-            (double)metric->spins / spin_divider);
+            (double)metric->spins / metric->spinned);
 
 #if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
-    fprintf(fp, "\t%s: cycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+    fprintf(fp, "\t\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
             "avg=%lfcyc (%lfus)\n", prefix,
             metric->cycles,
             (double)metric->cycles / ucs_arch_get_clocks_per_sec(),
@@ -47,34 +58,25 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,
 
 static void _print_profile(FILE *fp, locking_profile_t *profile)
 {
-    int avg_divider = 0;
-#if (UCX_SPLK_PROF_WAIT_TS)
-    avg_divider = profile->spinned;
-#elif (UCX_SPLK_PROF_FASTP_TS)
-    avg_divider = profile->invoked;
-#endif
-
-    fprintf(fp, "\tinvokations: %lu\n", profile->invoked);
-    fprintf(fp, "\tspin cases: %lu\n", profile->spinned);
-
-    _print_prof_metric(fp, &profile->cum,
-                       profile->spinned, avg_divider, "CUMULATIVE!");
+    _print_prof_metric(fp, &profile->cum, "CUMULATIVE!");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_POST],
-                       profile->spinned, avg_divider, "RPOST-ASYNC");
+                       "RPOST-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
-                       profile->spinned, avg_divider, "RPOST-PROGR");
+                       "RPOST-PROGR");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
-                       profile->spinned, avg_divider, "RPOST-PROGR");
+                       "RPOST-PROGR");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_PROGRESS],
-                       profile->spinned, avg_divider, "PROGR-ASYNC");
+                       "PROGR-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
-                       profile->spinned, avg_divider, "PROGR-RPOST");
+                       "PROGR-RPOST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_PROGRESS],
-                       profile->spinned, avg_divider, "PROGR-PROGR");
+                       "PROGR-PROGR");
 }
 
 static void _merge_metrics(locking_metrics_t *dst, locking_metrics_t *src)
 {
+    dst->invoked += src->invoked;
+    dst->spinned += src->spinned;
     dst->spins += src->spins;
     if( dst->spins_max < src->spins_max) {
         dst->spins_max = src->spins_max;
@@ -97,8 +99,6 @@ void ucx_lock_dbg_report()
                 _merge_metrics(&profile.diff[j][k], &lock_profiles[i].diff[j][k]);
             }
         }
-        profile.invoked += lock_profiles[i].invoked;
-        profile.spinned += lock_profiles[i].spinned;
     }
 
     char *ptr = getenv("UCX_LOCK_PROFILE_PATH");

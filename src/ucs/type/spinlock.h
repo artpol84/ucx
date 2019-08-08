@@ -103,11 +103,12 @@ typedef struct {
     uint64_t spins_max;
     uint64_t cycles;
     uint64_t cycles_max;
+    uint64_t invoked;
+    uint64_t spinned;
 } locking_metrics_t;
 
 typedef struct {
-    uint64_t invoked;
-    uint64_t spinned;
+
     locking_metrics_t cum;
     locking_metrics_t diff[SPINLOCK_OP_CNT][SPINLOCK_OP_CNT];
 } locking_profile_t;
@@ -152,6 +153,7 @@ _spinlock_prof(pthread_spinlock_t *l,
         "    mov %%rdx, %%r10\n"
 #endif
 
+         "    xor %%rax, %%rax\n"
         // Try to obtain the lock and exit if successful (*lock == 0)
         "    lock decl (%[lock])\n"
 
@@ -164,6 +166,7 @@ _spinlock_prof(pthread_spinlock_t *l,
        "    shl $32, %%rdx\n"
        "    or %%rax, %%rdx\n"
        "    mov %%rdx, %%r11\n"
+       "    xor %%rax, %%rax\n"
        // Restore status register
        "    popf\n"
 #endif
@@ -255,7 +258,7 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
     ++lock->count;
 
     // Profile part
-    prof->invoked++;
+    prof->cum.invoked++;
     prof->cum.spins += count;
     if( prof->cum.spins_max < count ) {
         prof->cum.spins_max = count;
@@ -267,18 +270,19 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
     if( count ) {
         // Count number of times the acquisition was delayed because someone
         // else was holding a lock
-        locking_metrics_t *metric = &prof->diff[owner_op][op];
-        prof->spinned++;
-        metric->spins += count;
-        if( metric->spins_max < count ) {
-            metric->spins_max = count;
-        }
-        metric->cycles += cycles;
-        if( metric->cycles_max < cycles ) {
-            metric->cycles_max = cycles;
-        }
-
+        prof->cum.spinned++;
     }
+
+    locking_metrics_t *metric = &prof->diff[owner_op][op];
+    metric->spins += count;
+    if( metric->spins_max < count ) {
+        metric->spins_max = count;
+    }
+    metric->cycles += cycles;
+    if( metric->cycles_max < cycles ) {
+        metric->cycles_max = cycles;
+    }
+
 }
 
 static inline int ucs_spin_trylock_prof(ucs_spinlock_t *lock,
