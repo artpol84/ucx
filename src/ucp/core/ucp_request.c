@@ -70,7 +70,7 @@ ucp_request_release_common(void *request, uint8_t cb_flag, const char *debug_nam
                                                         ucp_worker_t, req_mp);
     uint32_t flags;
 
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_POST);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_RELEASE);
 
     flags = req->flags;
     ucs_trace_req("%s request %p (%p) "UCP_REQUEST_FLAGS_FMT, debug_name,

@@ -87,12 +87,27 @@ static void _print_profile(FILE *fp, locking_profile_t *profile)
                        "NONE-POST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_NONE][SPINLOCK_PROGRESS],
                        "NONE-PROGRESS");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_NONE][SPINLOCK_RELEASE],
+                       "NONE-RELEASE");
 
+
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_RELEASE][SPINLOCK_RELEASE],
+                       "RELEASE-RELEASE");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_RELEASE][SPINLOCK_POST],
+                       "RELEASE-POST");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_RELEASE][SPINLOCK_PROGRESS],
+                       "RELEASE-PROGRESS");
+
+
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_RELEASE],
+                       "POST-RELEASE");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
                        "POST-POST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
                        "POST-PROGRESS");
 
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_RELEASE],
+                       "PROGRESS-RELEASE");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
                        "PROGRESS-POST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_PROGRESS],
