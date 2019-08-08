@@ -203,6 +203,9 @@ _spinlock_prof(pthread_spinlock_t *l,
         // Exit sequence
         "slk_exit_%=:\n"
 
+        // Store the measured metrics
+        "    mov %%rax, (%[cntr])\n"
+
         // Get the timestamp at the end of the waiting loop
 #if UCX_SPLK_PROF_WAIT_TS
         "    " UCX_RDTSCP_INSTR "\n"
@@ -211,8 +214,7 @@ _spinlock_prof(pthread_spinlock_t *l,
         "    mov %%rdx, %%r11\n"
 #endif
 
-        // Store the measured metrics
-        "    mov %%rax, (%[cntr])\n"
+
 #if (UCX_SPLK_PROF_FASTP_TS || UCX_SPLK_PROF_WAIT_TS)
         "    mov %%r10, (%[ts1])\n"
         "    mov %%r11, (%[ts2])\n"
