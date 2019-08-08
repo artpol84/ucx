@@ -25,6 +25,22 @@ static int _get_rank()
     return rank;
 }
 
+static int _get_jobid()
+{
+    static char jobid[256] = "";
+    if( strlen(jobid) == 0 ) {
+        char *s_stepid = getenv("SLURM_STEPID");
+        char *s_jobid = getenv("SLURM_JOBID");
+        if(stepid == NULL || jobid == NULL) {
+            sprintf(jobid, "0.0");
+        } else {
+            sprintf(jobid, "%s.%s", s_jobid, s_stepid);
+        }
+    }
+    return rank;
+}
+
+
 static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
 {
     int avg_divider = 0;
@@ -39,20 +55,20 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
     }
     fprintf(fp,"\t%s\n", prefix);
     fprintf(fp, "\t\tinvoked:\t%lu\n", metric->invoked);
-    fprintf(fp, "\t\twaited :\t%lu\n", metric->spinned);
+    fprintf(fp, "\t\twaited:\t%lu\n", metric->spinned);
 
-    fprintf(fp, "\t\tspins  :\ttot=%lu, max=%lu, avg=%lf\n",
+    fprintf(fp, "\t\tspins:\ttot=%lu, max=%lu, avg=%lf\n",
             metric->spins,
             metric->spins_max,
             (double)metric->spins / metric->spinned);
 
 #if (UCX_SPLK_PROF_WAIT_TS)
-    char *ts_prefix="W";
+    char *ts_prefix="W-";
 #elif (UCX_SPLK_PROF_FASTP_TS)
     char *ts_prefix="FP";
 #endif
 #if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
-    fprintf(fp, "\t\t%s-cycles :\ttot=%lucyc (%lfs), max=%lucyc (%lfus), "
+    fprintf(fp, "\t\t%s-cycles:\ttot=%lucyc (%lfs), max=%lucyc (%lfus), "
             "avg=%lfcyc (%lfus)\n", ts_prefix,
             metric->cycles,
             (double)metric->cycles / ucs_arch_get_clocks_per_sec(),
@@ -124,7 +140,17 @@ void ucx_lock_dbg_report()
 
     char path[1024], hname[256];
     gethostname(hname, 256);
-    sprintf(path, "%s/rank-%d.%s", ptr, _get_rank(), hname);
+
+#if (UCX_SPLK_PROF_WAIT_TS)
+    char *ts_prefix="ts_spin_wait";
+#elif (UCX_SPLK_PROF_FASTP_TS)
+    char *ts_prefix="ts_fast_path";
+#else
+    char *ts_prefix="spin_count";
+#endif
+
+    sprintf(path, "%s/prof_%s_j-%s_%s.%d",
+            ptr, ts_prefix, _get_jobid(), hname, _get_rank());
     FILE *fp = fopen(path, "w");
     if( NULL == fp) {
         ucs_error("Cannot open \"%s\" for writing\n", ptr);
