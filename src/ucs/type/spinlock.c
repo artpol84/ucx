@@ -63,7 +63,7 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
             (double)metric->spins / metric->spinned);
 
 #if (UCX_SPLK_PROF_WAIT_TS)
-    char *ts_prefix="W-";
+    char *ts_prefix="W";
 #elif (UCX_SPLK_PROF_FASTP_TS)
     char *ts_prefix="FP";
 #endif
