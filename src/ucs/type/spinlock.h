@@ -228,7 +228,7 @@ _spinlock_prof(pthread_spinlock_t *l,
     *spin_cnt = cntr;
 
     *ovh_cycles = 0;
-#if UCX_SPLK_PROF_WAIT_TS
+#if (UCX_SPLK_PROF_FASTP_TS || UCX_SPLK_PROF_WAIT_TS)
     if (ts1 != 0) {
         *ovh_cycles = ts2 - ts1;
     }
@@ -261,8 +261,8 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
         prof->cum.spins_max = count;
     }
     prof->cum.cycles += cycles;
-    if( prof->cum.cycles_max < count ) {
-        prof->cum.cycles_max = count;
+    if( prof->cum.cycles_max < cycles ) {
+        prof->cum.cycles_max = cycles;
     }
     if( count ) {
         // Count number of times the acquisition was delayed because someone
@@ -274,8 +274,8 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
             metric->spins_max = count;
         }
         metric->cycles += cycles;
-        if( metric->cycles_max < count ) {
-            metric->cycles_max = count;
+        if( metric->cycles_max < cycles ) {
+            metric->cycles_max = cycles;
         }
 
     }
