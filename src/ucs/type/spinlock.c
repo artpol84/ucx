@@ -62,8 +62,6 @@ static void _print_profile(FILE *fp, locking_profile_t *profile)
 {
     _print_prof_metric(fp, &profile->cum, "CUMULATIVE!");
 
-    _print_prof_metric(fp, &profile->diff[SPINLOCK_NONE][SPINLOCK_ASYNC],
-                       "NONE-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_NONE][SPINLOCK_POST],
                        "NONE-POST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_NONE][SPINLOCK_PROGRESS],
@@ -71,17 +69,18 @@ static void _print_profile(FILE *fp, locking_profile_t *profile)
 
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
                        "POST-POST");
-    _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_ASYNC],
-                       "POST-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
                        "POST-PROGRESS");
 
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
                        "PROGRESS-POST");
-    _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_ASYNC],
-                       "PROGRESS-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_PROGRESS],
                        "PROGRESS-PROGRESS");
+
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_POST],
+                       "ASYNC-POST");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_PROGRESS],
+                       "ASYNC-PROGRESS");
 }
 
 static void _merge_metrics(locking_metrics_t *dst, locking_metrics_t *src)
