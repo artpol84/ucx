@@ -128,13 +128,16 @@ static inline locking_profile_t *ucx_lock_dbg_thread_local()
 }
 
 static inline void
-_spinlock_prof(pthread_spinlock_t *l,
-                   uint64_t *ovh_cycles, uint64_t *spin_cnt)
+_spinlock_prof(pthread_spinlock_t *l, spinlock_operation_t *lock_op,
+               uint64_t *ovh_cycles, uint64_t *spin_cnt,
+               spinlock_operation_t *prev_op)
 {
     uint64_t cntr = 0;
 #if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
     uint64_t ts1, ts2;
 #endif
+
+    *prev_op = SPINLOCK_NONE;
 
     asm volatile (
 
@@ -172,6 +175,8 @@ _spinlock_prof(pthread_spinlock_t *l,
 #endif
         "    je slk_exit_%=\n"
 
+        "    movl (%[lock_op]), %%eax\n"
+        "    movl %%eax, (%[prev_op])\n"
         // Get the timestamp at the beginning of the waiting loop
 #if (UCX_SPLK_PROF_WAIT_TS)
         "    " UCX_RDTSCP_INSTR "\n"
@@ -220,7 +225,8 @@ _spinlock_prof(pthread_spinlock_t *l,
         "    mov %%r11, (%[ts2])\n"
 #endif
         :
-        : [lock] "r" (l), [cntr] "r" (&cntr)
+        : [lock] "r" (l), [cntr] "r" (&cntr),
+          [lock_op] "r" (lock_op), [prev_op] "r" (prev_op)
 #if (UCX_SPLK_PROF_FASTP_TS || UCX_SPLK_PROF_WAIT_TS)
           , [ts1] "r" (&ts1), [ts2] "r" (&ts2)
 #endif
@@ -251,9 +257,8 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
         ++lock->count;
         return;
     }
-    owner_op = lock->op_type;
 
-    _spinlock_prof(&lock->lock, &cycles, &count);
+    _spinlock_prof(&lock->lock, &lock->op_type, &cycles, &count, &owner_op);
 
     lock->op_type = op;
     lock->owner = self;
