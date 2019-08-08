@@ -46,7 +46,7 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
 
 #if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
     fprintf(fp, "\t\tcycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
-            "avg=%lfcyc (%lfus)\n", prefix,
+            "avg=%lfcyc (%lfus)\n",
             metric->cycles,
             (double)metric->cycles / ucs_arch_get_clocks_per_sec(),
             metric->cycles_max,
