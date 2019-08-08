@@ -199,7 +199,7 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_send_nb,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(ep->worker->context, UCP_FEATURE_TAG,
                                     return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("send_nb buffer %p count %zu tag %"PRIx64" to %s cb %p",
                   buffer, count, tag, ucp_ep_peer_name(ep), cb);
@@ -239,7 +239,7 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_tag_send_nbr,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(ep->worker->context, UCP_FEATURE_TAG,
                                     return UCS_ERR_INVALID_PARAM);
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("send_nbr buffer %p count %zu tag %"PRIx64" to %s req %p",
                   buffer, count, tag, ucp_ep_peer_name(ep), request);
@@ -277,7 +277,7 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_send_sync_nb,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(ep->worker->context, UCP_FEATURE_TAG,
                                     return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("send_sync_nb buffer %p count %zu tag %"PRIx64" to %s cb %p",
                   buffer, count, tag, ucp_ep_peer_name(ep), cb);

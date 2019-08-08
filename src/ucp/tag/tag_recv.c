@@ -166,7 +166,7 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_tag_recv_nbr,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
                                     return UCS_ERR_INVALID_PARAM);
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_POST);
 
     rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nbr");
     ucp_tag_recv_common(worker, buffer, count, datatype, tag, tag_mask,
@@ -189,7 +189,7 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_recv_nb,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
                                     return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_POST);
 
     req = ucp_request_get(worker);
     if (ucs_likely(req != NULL)) {
@@ -217,7 +217,7 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_msg_recv_nb,
 
     UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
                                     return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_POST);
 
     req = ucp_request_get(worker);
     if (ucs_likely(req != NULL)) {

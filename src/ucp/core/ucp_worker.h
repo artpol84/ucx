@@ -33,7 +33,14 @@
 #define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(_worker)                 \
     do {                                                                \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            ucs_spin_lock(&(_worker)->async.thread.spinlock);   \
+            ucs_spin_lock_prof(&(_worker)->async.thread.spinlock, SPINLOCK_NONE);      \
+        }                                                               \
+    } while (0)
+
+#define UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(_worker, op)        \
+    do {                                                                \
+        if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
+            ucs_spin_lock_prof(&(_worker)->async.thread.spinlock, op);  \
         }                                                               \
     } while (0)
 
@@ -41,7 +48,7 @@
 #define UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(_worker)                  \
     do {                                                                \
         if ((_worker)->flags & UCP_WORKER_FLAG_MT) {                    \
-            ucs_spin_unlock(&(_worker)->async.thread.spinlock);     \
+            ucs_spin_unlock_prof(&(_worker)->async.thread.spinlock);     \
         }                                                               \
     } while (0)
 

@@ -203,7 +203,7 @@ ucs_status_t ucp_put_nbi(ucp_ep_h ep, const void *buffer, size_t length,
 
     UCP_RMA_CHECK(ep->worker->context, buffer, length);
 
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("put_nbi buffer %p length %zu remote_addr %"PRIx64" rkey %p to %s",
                    buffer, length, remote_addr, rkey, ucp_ep_peer_name(ep));
@@ -240,7 +240,7 @@ ucs_status_ptr_t ucp_put_nb(ucp_ep_h ep, const void *buffer, size_t length,
     ucs_status_t status;
 
     UCP_RMA_CHECK_PTR(ep->worker->context, buffer, length);
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("put_nb buffer %p length %zu remote_addr %"PRIx64" rkey %p to %s cb %p",
                    buffer, length, remote_addr, rkey, ucp_ep_peer_name(ep), cb);
@@ -277,7 +277,7 @@ ucs_status_t ucp_get_nbi(ucp_ep_h ep, void *buffer, size_t length,
     ucs_status_t status;
 
     UCP_RMA_CHECK(ep->worker->context, buffer, length);
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("get_nbi buffer %p length %zu remote_addr %"PRIx64" rkey %p from %s",
                    buffer, length, remote_addr, rkey, ucp_ep_peer_name(ep));
@@ -305,7 +305,7 @@ ucs_status_ptr_t ucp_get_nb(ucp_ep_h ep, void *buffer, size_t length,
     ucs_status_t status;
 
     UCP_RMA_CHECK_PTR(ep->worker->context, buffer, length);
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(ep->worker, SPINLOCK_POST);
 
     ucs_trace_req("get_nb buffer %p length %zu remote_addr %"PRIx64" rkey %p from %s cb %p",
                    buffer, length, remote_addr, rkey, ucp_ep_peer_name(ep), cb);

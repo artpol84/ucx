@@ -8,7 +8,123 @@
 
 #include <ucs/debug/log.h>
 #include <string.h>
+#include "ucs/arch/cpu.h"
+#include <unistd.h>
 
+volatile int32_t lock_profiles_count = 0;
+volatile __thread int32_t lock_profile_index_loc = -1;
+locking_profile_t lock_profiles[1024] = { { 0 } };
+
+static int _get_rank()
+{
+    static int rank = -1;
+    if( rank < 0 ) {
+        char *ptr = getenv("PMIX_RANK");
+        rank = atoi(ptr);
+    }
+    return rank;
+}
+
+static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,
+                               int avg_divider, char *prefix)
+{
+    fprintf(fp, "\tspins: tot=%lu, max=%lu, avg=%lf\n",
+            metric->spins,
+            metric->spins_max,
+            (double)metric->spins / avg_divider);
+
+    fprintf(fp, "\t%s: cycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
+            "avg=%lfcyc (%lfus)\n", prefix,
+            metric->cycles,
+            (double)metric->cycles / ucs_arch_get_clocks_per_sec(),
+            metric->cycles_max,
+            1E6 * (double)metric->cycles_max / ucs_arch_get_clocks_per_sec(),
+            (double)metric->cycles / avg_divider,
+            (double)metric->cycles / avg_divider / ucs_arch_get_clocks_per_sec() * 1E6);
+}
+
+static void _print_profile(FILE *fp, locking_profile_t *profile)
+{
+    int avg_divider;
+#if (UCX_SPLK_PROF_WAIT_TS)
+    avg_divider = profile->spinned;
+#elif (UCX_SPLK_PROF_FASTP_TS)
+    avg_divider = profile->invoked;
+#endif
+
+    fprintf(fp, "\tinvokations: %lu\n", profile->invoked);
+    fprintf(fp, "\tspin cases: %lu\n", profile->spinned);
+
+#if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
+    _print_prof_metric(fp, &profile->cum,
+                       avg_divider, "CUMULATIVE!");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_POST],
+                       avg_divider, "RPOST-ASYNC");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
+                       avg_divider, "RPOST-PROGR");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
+                       avg_divider, "RPOST-PROGR");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_PROGRESS],
+                       avg_divider, "PROGR-ASYNC");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
+                       avg_divider, "PROGR-RPOST");
+    _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_PROGRESS],
+                       avg_divider, "PROGR-PROGR");
+#endif
+}
+
+static void _merge_metrics(locking_metrics_t *dst, locking_metrics_t *src)
+{
+    dst->spins += src->spins;
+    if( dst->spins_max < src->spins_max) {
+        dst->spins_max = src->spins_max;
+    }
+    dst->cycles += src->cycles;
+    if( dst->cycles_max < src->cycles_max) {
+        dst->cycles_max = src->cycles_max;
+    }
+}
+
+void ucx_lock_dbg_report()
+{
+    locking_profile_t profile = { 0 };
+    int i;
+    for(i=0; i<lock_profiles_count; i++) {
+        int j,k;
+        _merge_metrics(&profile.cum, &lock_profiles[i].cum);
+        for(j=0; j<SPINLOCK_OP_CNT; j++) {
+            for(k=0; k<SPINLOCK_OP_CNT; k++) {
+                _merge_metrics(&profile.diff[j][k], &lock_profiles[i].diff[j][k]);
+            }
+        }
+        profile.invoked += lock_profiles[i].invoked;
+    }
+
+    char *ptr = getenv("UCX_LOCK_PROFILE_PATH");
+    if(NULL == ptr) {
+        // No profiling collection was requested
+        return;
+    }
+
+    char path[1024], hname[256];
+    gethostname(hname, 256);
+    sprintf(path, "%s/rank-%d.%s", ptr, _get_rank(), hname);
+    FILE *fp = fopen(path, "w");
+    if( NULL == fp) {
+        ucs_error("Cannot open \"%s\" for writing\n", ptr);
+        return;
+    }
+
+    fprintf(fp, "Cumulative info:\n");
+    _print_profile(fp, &profile);
+
+    fprintf(fp, "Per-thread info:\n");
+    for(i=0; i < lock_profiles_count; i++) {
+        fprintf(fp, "Thread #%d:\n", i);
+        _print_profile(fp, &lock_profiles[i]);
+    }
+    fclose(fp);
+}
 
 ucs_status_t ucs_spinlock_init(ucs_spinlock_t *lock)
 {
@@ -21,6 +137,14 @@ ucs_status_t ucs_spinlock_init(ucs_spinlock_t *lock)
 
     lock->count = 0;
     lock->owner = 0xfffffffful;
+    lock->is_profiled = 0;
+    return UCS_OK;
+}
+
+ucs_status_t ucs_spinlock_init_prof(ucs_spinlock_t *lock)
+{
+    ucs_spinlock_init(lock);
+    lock->is_profiled = 1;
     return UCS_OK;
 }
 
@@ -28,6 +152,9 @@ void ucs_spinlock_destroy(ucs_spinlock_t *lock)
 {
     int ret;
 
+    if( lock->is_profiled) {
+        ucx_lock_dbg_report();
+    }
     if (lock->count != 0) {
         ucs_warn("destroying spinlock %p with use count %d (owner: 0x%lx)",
                  lock, lock->count, lock->owner);

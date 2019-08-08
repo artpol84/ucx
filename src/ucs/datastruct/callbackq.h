@@ -96,7 +96,7 @@ struct ucs_callbackq {
      * Private data, which we don't want to expose in API to avoid pulling
      * more header files
      */
-    char                           priv[72];
+    char                           priv[80];
 };
 
 

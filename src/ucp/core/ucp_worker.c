@@ -1798,7 +1798,7 @@ unsigned ucp_worker_progress(ucp_worker_h worker)
     /* worker->inprogress is used only for assertion check.
      * coverity[assert_side_effect]
      */
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
+    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL_PROF(worker, SPINLOCK_PROGRESS);
 
     /* check that ucp_worker_progress is not called from within ucp_worker_progress */
     ucs_assert(worker->inprogress++ == 0);
