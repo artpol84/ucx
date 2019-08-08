@@ -66,7 +66,7 @@ static void _print_profile(FILE *fp, locking_profile_t *profile)
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
                        "RPOST-PROGR");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
-                       "RPOST-PROGR");
+                       "RPOST-RPOST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_PROGRESS],
                        "PROGR-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
