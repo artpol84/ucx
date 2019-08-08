@@ -138,8 +138,12 @@ void ucx_lock_dbg_report()
         return;
     }
 
-    char path[1024], hname[256];
+    char path[1024], hname[256] = "", *hname_dot = NULL;
     gethostname(hname, 256);
+    hname_dot = strchr(hname,'.');
+    if( hname_dot ){
+        *hname_dot = '\0';
+    }
 
 #if (UCX_SPLK_PROF_WAIT_TS)
     char *ts_prefix="ts_spin_wait";
@@ -148,7 +152,6 @@ void ucx_lock_dbg_report()
 #else
     char *ts_prefix="spin_count";
 #endif
-
     sprintf(path, "%s/prof_%s_j-%s_%s.%d",
             ptr, ts_prefix, _get_jobid(), hname, _get_rank());
     FILE *fp = fopen(path, "w");
