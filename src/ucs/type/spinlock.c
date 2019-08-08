@@ -34,7 +34,9 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
     avg_divider = metric->invoked;
 #endif
     (void)avg_divider;
-
+    if(!metric->invoked) {
+        return;
+    }
     fprintf(fp,"\t%s\n", prefix);
     fprintf(fp, "\t\tinvoked: %lu\n", metric->invoked);
     fprintf(fp, "\t\twaited: %lu\n", metric->spinned);

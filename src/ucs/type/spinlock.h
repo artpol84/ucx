@@ -267,13 +267,9 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
     if( prof->cum.cycles_max < cycles ) {
         prof->cum.cycles_max = cycles;
     }
-    if( count ) {
-        // Count number of times the acquisition was delayed because someone
-        // else was holding a lock
-        prof->cum.spinned++;
-    }
 
     locking_metrics_t *metric = &prof->diff[owner_op][op];
+    metric->invoked++;
     metric->spins += count;
     if( metric->spins_max < count ) {
         metric->spins_max = count;
@@ -281,6 +277,14 @@ static inline void ucs_spin_lock_prof(ucs_spinlock_t *lock, spinlock_operation_t
     metric->cycles += cycles;
     if( metric->cycles_max < cycles ) {
         metric->cycles_max = cycles;
+    }
+
+    if( count ) {
+        // Count number of times the acquisition was delayed because someone
+        // else was holding a lock
+        prof->cum.spinned++;
+        metric->spinned++;
+
     }
 
 }
