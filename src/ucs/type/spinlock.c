@@ -54,7 +54,7 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
         return;
     }
     fprintf(fp,"\t%s\n", prefix);
-    fprintf(fp, "\t\tinvoked:\t%lu\n", metric->invoked);
+    fprintf(fp, "\t\tcount:\t%lu\n", metric->invoked);
     fprintf(fp, "\t\twaited:\t%lu\n", metric->spinned);
 
     fprintf(fp, "\t\tspins:\ttot=%lu, max=%lu, avg=%lf\n",
