@@ -218,7 +218,7 @@ _spinlock_prof(pthread_spinlock_t *l,
         : "memory", "rax"
 
 #if (UCX_SPLK_PROF_FASTP_TS || UCX_SPLK_PROF_WAIT_TS)
-                , "rdx", "r10", "r11"
+                , "rdx", "rcx", "r10", "r11"
 #endif
         );
     *spin_cnt = cntr;
