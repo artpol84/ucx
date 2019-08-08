@@ -25,7 +25,7 @@ static int _get_rank()
     return rank;
 }
 
-static int _get_jobid()
+static char *_get_jobid()
 {
     static char jobid[256] = "";
     if( strlen(jobid) == 0 ) {
