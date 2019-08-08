@@ -29,9 +29,9 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,char *prefix)
 {
     int avg_divider = 0;
 #if (UCX_SPLK_PROF_WAIT_TS)
-    avg_divider = profile->spinned;
+    avg_divider = metric->spinned;
 #elif (UCX_SPLK_PROF_FASTP_TS)
-    avg_divider = profile->invoked;
+    avg_divider = metric->invoked;
 #endif
     (void)avg_divider;
 
