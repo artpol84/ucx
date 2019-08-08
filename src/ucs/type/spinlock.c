@@ -37,7 +37,7 @@ static int _get_jobid()
             sprintf(jobid, "%s.%s", s_jobid, s_stepid);
         }
     }
-    return rank;
+    return jobid;
 }
 
 
