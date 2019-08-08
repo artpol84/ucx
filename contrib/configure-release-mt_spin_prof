@@ -18,5 +18,5 @@ $basedir/../contrib/configure-release \
 	--disable-assertions \
 	--disable-params-check \
 	--enable-mt \
-	CFLAGS="-DUCX_SPLK_PROF_TS=1" \
+	CFLAGS="-DUCX_SPLK_PROF_WAIT_TS=1" \
 	"$@"
