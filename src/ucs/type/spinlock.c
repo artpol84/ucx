@@ -98,6 +98,7 @@ void ucx_lock_dbg_report()
             }
         }
         profile.invoked += lock_profiles[i].invoked;
+        profile.spinned += lock_profiles[i].spinned;
     }
 
     char *ptr = getenv("UCX_LOCK_PROFILE_PATH");
