@@ -31,7 +31,7 @@ static char *_get_jobid()
     if( strlen(jobid) == 0 ) {
         char *s_stepid = getenv("SLURM_STEPID");
         char *s_jobid = getenv("SLURM_JOBID");
-        if(stepid == NULL || jobid == NULL) {
+        if(s_stepid == NULL || s_jobid == NULL) {
             sprintf(jobid, "0.0");
         } else {
             sprintf(jobid, "%s.%s", s_jobid, s_stepid);
