@@ -26,13 +26,14 @@ static int _get_rank()
 }
 
 static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,
-                               int avg_divider, char *prefix)
+                               int spin_divider, int avg_divider, char *prefix)
 {
     fprintf(fp, "\tspins: tot=%lu, max=%lu, avg=%lf\n",
             metric->spins,
             metric->spins_max,
-            (double)metric->spins / avg_divider);
+            (double)metric->spins / spin_divider);
 
+#if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
     fprintf(fp, "\t%s: cycles: tot=%lucyc (%lfs), max=%lucyc (%lfus), "
             "avg=%lfcyc (%lfus)\n", prefix,
             metric->cycles,
@@ -41,11 +42,12 @@ static void _print_prof_metric(FILE *fp, locking_metrics_t *metric,
             1E6 * (double)metric->cycles_max / ucs_arch_get_clocks_per_sec(),
             (double)metric->cycles / avg_divider,
             (double)metric->cycles / avg_divider / ucs_arch_get_clocks_per_sec() * 1E6);
+#endif
 }
 
 static void _print_profile(FILE *fp, locking_profile_t *profile)
 {
-    int avg_divider;
+    int avg_divider = 0;
 #if (UCX_SPLK_PROF_WAIT_TS)
     avg_divider = profile->spinned;
 #elif (UCX_SPLK_PROF_FASTP_TS)
@@ -55,22 +57,20 @@ static void _print_profile(FILE *fp, locking_profile_t *profile)
     fprintf(fp, "\tinvokations: %lu\n", profile->invoked);
     fprintf(fp, "\tspin cases: %lu\n", profile->spinned);
 
-#if (UCX_SPLK_PROF_WAIT_TS || UCX_SPLK_PROF_FASTP_TS)
     _print_prof_metric(fp, &profile->cum,
-                       avg_divider, "CUMULATIVE!");
+                       profile->spinned, avg_divider, "CUMULATIVE!");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_POST],
-                       avg_divider, "RPOST-ASYNC");
+                       profile->spinned, avg_divider, "RPOST-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_POST],
-                       avg_divider, "RPOST-PROGR");
+                       profile->spinned, avg_divider, "RPOST-PROGR");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_POST],
-                       avg_divider, "RPOST-PROGR");
+                       profile->spinned, avg_divider, "RPOST-PROGR");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_ASYNC][SPINLOCK_PROGRESS],
-                       avg_divider, "PROGR-ASYNC");
+                       profile->spinned, avg_divider, "PROGR-ASYNC");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_POST][SPINLOCK_PROGRESS],
-                       avg_divider, "PROGR-RPOST");
+                       profile->spinned, avg_divider, "PROGR-RPOST");
     _print_prof_metric(fp, &profile->diff[SPINLOCK_PROGRESS][SPINLOCK_PROGRESS],
-                       avg_divider, "PROGR-PROGR");
-#endif
+                       profile->spinned, avg_divider, "PROGR-PROGR");
 }
 
 static void _merge_metrics(locking_metrics_t *dst, locking_metrics_t *src)
