@@ -89,7 +89,7 @@ static void _merge_metrics(locking_metrics_t *dst, locking_metrics_t *src)
 
 void ucx_lock_dbg_report()
 {
-    locking_profile_t profile = { 0 };
+    locking_profile_t profile = { { 0 } };
     int i;
     for(i=0; i<lock_profiles_count; i++) {
         int j,k;
