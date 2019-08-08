@@ -158,14 +158,14 @@ _spinlock_prof(pthread_spinlock_t *l,
         // Get the timestamp after the fastpath attempt
 #if (UCX_SPLK_PROF_FASTP_TS)
        // Store the status register to the stack
-       "    pushf"
+       "    pushf\n"
        // End timestamp of the fastpath code
        "    " UCX_RDTSCP_INSTR "\n"
        "    shl $32, %%rdx\n"
        "    or %%rax, %%rdx\n"
        "    mov %%rdx, %%r11\n"
        // Restore status register
-       "    popf"
+       "    popf\n"
 #endif
         "    je slk_exit_%=\n"
 
