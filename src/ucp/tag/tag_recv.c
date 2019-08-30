@@ -68,8 +68,9 @@ ucp_tag_recv_common(ucp_worker_h worker, void *buffer, size_t count,
         recv_len                      = rdesc->length - hdr_len;
         req->recv.tag.info.sender_tag = ucp_rdesc_get_tag(rdesc);
         req->recv.tag.info.length     = recv_len;
-        mem_type                      = ucp_memory_type_detect(worker->context,
-                                                               buffer, recv_len);
+        mem_type                      = UCS_MEMORY_TYPE_HOST;
+        //ucp_memory_type_detect(worker->context,
+        //                                                       buffer, recv_len);
 
         status = ucp_dt_unpack_only(worker, buffer, count, datatype, mem_type,
                                     (void*)(rdesc + 1) + hdr_len, recv_len, 1);
@@ -181,25 +182,17 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_recv_nb,
                  uintptr_t datatype, ucp_tag_t tag, ucp_tag_t tag_mask,
                  ucp_tag_recv_callback_t cb)
 {
-    ucp_recv_desc_t *rdesc;
     ucs_status_ptr_t ret;
     ucp_request_t *req;
 
-    UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
-                                    return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
-
     req = ucp_request_get(worker);
-    if (ucs_likely(req != NULL)) {
-        rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nb");
-        ucp_tag_recv_common(worker, buffer, count, datatype, tag, tag_mask, req,
-                            UCP_REQUEST_FLAG_CALLBACK, cb, rdesc,"recv_nb");
-        ret = req + 1;
-    } else {
-        ret = UCS_STATUS_PTR(UCS_ERR_NO_MEMORY);
-    }
-
-    UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(worker);
+    req->flags                    = UCP_REQUEST_FLAG_RECV | UCP_REQUEST_FLAG_CALLBACK;
+    req->recv.tag.info.sender_tag = 0;
+    req->recv.tag.info.length     = 1;
+    cb(req + 1, UCS_OK, &req->recv.tag.info);
+    ucp_tag_recv_request_completed(req, UCS_OK, &req->recv.tag.info,
+                                   "test");
+    ret = req + 1;
     return ret;
 }
 
