@@ -1037,6 +1037,9 @@ uct_rc_mlx5_iface_tag_handle_unexp(uct_rc_mlx5_iface_common_t *iface,
 }
 #endif /* IBV_HW_TM */
 
+#include <sys/types.h>
+#include <unistd.h>
+
 static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *iface,
                                  int is_tag_enabled)
@@ -1074,6 +1077,17 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *iface,
     if (!is_tag_enabled) {
         rc_hdr = uct_rc_mlx5_iface_common_data(iface, cqe,
                                                byte_len, &flags);
+        char fname[256];
+        sprintf(fname,"/tmp/artpol/%d.dump", getpid());
+        FILE *fp = fopen(fname, "a");
+        int i;
+        fprintf(fp,"%d ", byte_len);
+        for(i=0; i< byte_len; i++){
+            char *ptr = rc_hdr;
+            fprintf(fp, "0x%02hhx ", ptr[i]);
+        }
+        fprintf(fp,"\n");
+        fclose(fp);
         uct_rc_mlx5_iface_common_am_handler(iface, cqe, rc_hdr, flags, byte_len);
         goto done;
     }
