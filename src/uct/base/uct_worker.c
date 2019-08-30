@@ -30,6 +30,13 @@ static UCS_CLASS_CLEANUP_FUNC(uct_worker_t)
 
 UCS_CLASS_DEFINE(uct_worker_t, void);
 
+
+int imitation_credits = 0;
+int debug_add_credits(int count) {
+    imitation_credits += count;
+    return 0;
+}
+
 static UCS_CLASS_INIT_FUNC(uct_priv_worker_t, ucs_async_context_t *async,
                            ucs_thread_mode_t thread_mode)
 {

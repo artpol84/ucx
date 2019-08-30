@@ -187,35 +187,9 @@ uct_rc_mlx5_iface_common_am_handler(uct_rc_mlx5_iface_common_t *iface,
                                     uct_rc_mlx5_hdr_t *hdr,
                                     unsigned flags, unsigned byte_len)
 {
-    uint16_t wqe_ctr;
-    uct_rc_iface_ops_t *rc_ops;
-    uct_ib_mlx5_srq_seg_t *seg;
-    uint32_t qp_num;
-    ucs_status_t status;
-
-    wqe_ctr = ntohs(cqe->wqe_counter);
-    seg     = uct_ib_mlx5_srq_get_wqe(&iface->rx.srq, wqe_ctr);
-
-    uct_ib_mlx5_log_rx(&iface->super.super, cqe, hdr,
-                       uct_rc_mlx5_common_packet_dump);
-
-    if (ucs_unlikely(hdr->rc_hdr.am_id & UCT_RC_EP_FC_MASK)) {
-        qp_num = ntohl(cqe->sop_drop_qpn) & UCS_MASK(UCT_IB_QPN_ORDER);
-        rc_ops = ucs_derived_of(iface->super.super.ops, uct_rc_iface_ops_t);
-
-        /* coverity[overrun-buffer-val] */
-        status = rc_ops->fc_handler(&iface->super, qp_num, &hdr->rc_hdr,
-                                    byte_len - sizeof(*hdr),
-                                    cqe->imm_inval_pkey, cqe->slid, flags);
-    } else {
-        status = uct_iface_invoke_am(&iface->super.super.super, hdr->rc_hdr.am_id,
+    uct_iface_invoke_am(&iface->super.super.super, hdr->rc_hdr.am_id,
                                      hdr + 1, byte_len - sizeof(*hdr),
                                      flags);
-    }
-
-    uct_rc_mlx5_iface_release_srq_seg(iface, seg, wqe_ctr, status,
-                                      iface->super.super.config.rx_headroom_offset,
-                                      &iface->super.super.release_desc);
 }
 
 static UCS_F_ALWAYS_INLINE uint8_t
@@ -1037,6 +1011,9 @@ uct_rc_mlx5_iface_tag_handle_unexp(uct_rc_mlx5_iface_common_t *iface,
 }
 #endif /* IBV_HW_TM */
 
+static int imitation_on = 0;
+extern int imitation_credits;
+
 static UCS_F_ALWAYS_INLINE unsigned
 uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *iface,
                                  int is_tag_enabled)
@@ -1054,6 +1031,28 @@ uct_rc_mlx5_iface_common_poll_rx(uct_rc_mlx5_iface_common_t *iface,
     uct_tag_context_t *ctx;
     uct_rc_mlx5_ctx_priv_t *priv;
 #endif
+
+    if( ucs_likely(imitation_on) ){
+        uint64_t msg[2];
+        char ptr[] = { 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x61 };
+        memcpy(msg, ptr, sizeof(ptr));
+
+        if( ucs_likely(imitation_credits > 0) ) {
+            uct_rc_mlx5_iface_common_am_handler(iface, NULL, (uct_rc_mlx5_hdr_t *)&msg, 0, sizeof(ptr));
+            imitation_credits--;
+            return 1;
+        }
+        
+        return 0;
+    } else {
+
+        char *ptr = getenv("START_IMITATION");
+        if( ptr ){
+            printf("Start imitation\n");
+            fflush(stdout);
+            imitation_on = 1;
+        }
+    }
 
     ucs_assert(uct_ib_mlx5_srq_get_wqe(&iface->rx.srq,
                                        iface->rx.srq.mask)->srq.next_wqe_index == 0);
