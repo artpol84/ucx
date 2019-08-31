@@ -57,11 +57,11 @@ ucp_tag_exp_get_queue_for_tag(ucp_tag_match_t *tm, ucp_tag_t tag)
 static UCS_F_ALWAYS_INLINE ucp_request_queue_t*
 ucp_tag_exp_get_queue(ucp_tag_match_t *tm, ucp_tag_t tag, ucp_tag_t tag_mask)
 {
-    if (tag_mask == UCP_TAG_MASK_FULL) {
-        return ucp_tag_exp_get_queue_for_tag(tm, tag);
-    } else {
+//    if (tag_mask == UCP_TAG_MASK_FULL) {
+//        return ucp_tag_exp_get_queue_for_tag(tm, tag);
+//    } else {
         return &tm->expected.wildcard;
-    }
+//    }
 }
 
 static UCS_F_ALWAYS_INLINE ucp_request_queue_t*
