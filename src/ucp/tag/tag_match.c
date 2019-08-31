@@ -92,48 +92,58 @@ ucp_request_t*
 ucp_tag_exp_search_all(ucp_tag_match_t *tm, ucp_request_queue_t *req_queue,
                        ucp_tag_t tag)
 {
-    ucs_queue_head_t *hash_queue = &req_queue->queue;
-    ucp_request_queue_t *queue;
-    ucs_queue_iter_t hash_iter, wild_iter, *iter;
-    uint64_t hash_sn, wild_sn, *sn_p;
+//    ucs_queue_head_t *hash_queue = &req_queue->queue;
+//    ucp_request_queue_t *queue;
+//    ucs_queue_iter_t hash_iter, wild_iter, *iter;
+//    uint64_t hash_sn, wild_sn, *sn_p;
     ucp_request_t *req;
 
-    *hash_queue->ptail                 = NULL;
-    *tm->expected.wildcard.queue.ptail = NULL;
+//    *hash_queue->ptail                 = NULL;
+//    *tm->expected.wildcard.queue.ptail = NULL;
 
-    hash_iter = ucs_queue_iter_begin(hash_queue);
-    wild_iter = ucs_queue_iter_begin(&tm->expected.wildcard.queue);
-
-    hash_sn = ucp_tag_exp_req_seq(hash_iter);
-    wild_sn = ucp_tag_exp_req_seq(wild_iter);
-
-    while (hash_sn != wild_sn) {
-        if (hash_sn < wild_sn) {
-            iter  = &hash_iter;
-            sn_p  = &hash_sn;
-            queue = req_queue;
-        } else {
-            iter  = &wild_iter;
-            sn_p  = &wild_sn;
-            queue = &tm->expected.wildcard;
-        }
-
-        req = ucs_container_of(**iter, ucp_request_t, recv.queue);
-        if (ucp_tag_is_match(tag, req->recv.tag.tag, req->recv.tag.tag_mask)) {
-            ucs_trace_req("matched received tag %"PRIx64" to req %p", tag, req);
-            ucp_tag_exp_delete(req, tm, queue, *iter);
-            return req;
-        }
-
-        *iter = ucs_queue_iter_next(*iter);
-        *sn_p = ucp_tag_exp_req_seq(*iter);
+    ucs_queue_elem_t *elem = ucs_queue_pull_non_empty(&tm->expected.wildcard.queue);
+    req = ucs_container_of(elem, ucp_request_t, recv.queue);
+    if (ucp_tag_is_match(tag, req->recv.tag.tag, req->recv.tag.tag_mask)) {
+        ucs_trace_req("matched received tag %"PRIx64" to req %p", tag, req);
+        //ucp_tag_exp_delete(req, tm, queue, *iter);
+        return req;
     }
+    abort();
 
-    ucs_assertv((hash_sn == ULONG_MAX) && (wild_sn == ULONG_MAX),
-                "hash_seq=%lu wild_seq=%lu", hash_sn, wild_sn);
-    ucs_assert(ucs_queue_iter_end(hash_queue, hash_iter));
-    ucs_assert(ucs_queue_iter_end(&tm->expected.wildcard.queue, wild_iter));
-    return NULL;
+
+//    hash_iter = ucs_queue_iter_begin(hash_queue);
+//    wild_iter = ucs_queue_iter_begin(&tm->expected.wildcard.queue);
+
+//    hash_sn = ucp_tag_exp_req_seq(hash_iter);
+//    wild_sn = ucp_tag_exp_req_seq(wild_iter);
+
+//    while (hash_sn != wild_sn) {
+//        if (hash_sn < wild_sn) {
+//            iter  = &hash_iter;
+//            sn_p  = &hash_sn;
+//            queue = req_queue;
+//        } else {
+//            iter  = &wild_iter;
+//            sn_p  = &wild_sn;
+//            queue = &tm->expected.wildcard;
+//        }
+
+//        req = ucs_container_of(**iter, ucp_request_t, recv.queue);
+//        if (ucp_tag_is_match(tag, req->recv.tag.tag, req->recv.tag.tag_mask)) {
+//            ucs_trace_req("matched received tag %"PRIx64" to req %p", tag, req);
+//            ucp_tag_exp_delete(req, tm, queue, *iter);
+//            return req;
+//        }
+
+//        *iter = ucs_queue_iter_next(*iter);
+//        *sn_p = ucp_tag_exp_req_seq(*iter);
+//    }
+
+//    ucs_assertv((hash_sn == ULONG_MAX) && (wild_sn == ULONG_MAX),
+//                "hash_seq=%lu wild_seq=%lu", hash_sn, wild_sn);
+//    ucs_assert(ucs_queue_iter_end(hash_queue, hash_iter));
+//    ucs_assert(ucs_queue_iter_end(&tm->expected.wildcard.queue, wild_iter));
+//    return NULL;
 }
 
 void ucp_tag_frag_list_process_queue(ucp_tag_match_t *tm, ucp_request_t *req,

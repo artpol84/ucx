@@ -77,44 +77,46 @@ ucp_eager_tagged_handler(void *arg, void *data, size_t length, unsigned am_flags
 {
     ucp_worker_h worker        = arg;
     ucp_eager_hdr_t *eager_hdr = data;
-    ucp_eager_first_hdr_t *eagerf_hdr;
+    //ucp_eager_first_hdr_t *eagerf_hdr;
     ucp_recv_desc_t *rdesc;
     ucp_request_t *req;
     ucs_status_t status;
     ucp_tag_t recv_tag;
     size_t recv_len;
 
-    ucs_assert(length >= hdr_len);
-    ucs_assert(flags & UCP_RECV_DESC_FLAG_EAGER);
+//    ucs_assert(length >= hdr_len);
+//    ucs_assert(flags & UCP_RECV_DESC_FLAG_EAGER);
 
     recv_tag = eager_hdr->super.tag;
     recv_len = length - hdr_len;
 
     req = ucp_tag_exp_search(&worker->tm, recv_tag);
     if (req != NULL) {
-        ucp_eager_expected_handler(worker, req, data, recv_len, recv_tag, flags);
+//        ucp_eager_expected_handler(worker, req, data, recv_len, recv_tag, flags);
+        req->recv.tag.info.sender_tag = recv_tag;
 
-        if (flags & UCP_RECV_DESC_FLAG_EAGER_SYNC) {
-            ucp_tag_eager_sync_send_ack(worker, data, flags);
-        }
+//        if (flags & UCP_RECV_DESC_FLAG_EAGER_SYNC) {
+//            ucp_tag_eager_sync_send_ack(worker, data, flags);
+//        }
 
-        if (flags & UCP_RECV_DESC_FLAG_EAGER_ONLY) {
+//        if (flags & UCP_RECV_DESC_FLAG_EAGER_ONLY) {
             req->recv.tag.info.length = recv_len;
-            status = ucp_request_recv_data_unpack(req, data + hdr_len, recv_len,
-                                                  0, 1);
-            ucp_request_complete_tag_recv(req, status);
-        } else {
-            eagerf_hdr                = data;
-            req->recv.tag.info.length =
-            req->recv.tag.remaining   = eagerf_hdr->total_len;
+//            status = ucp_request_recv_data_unpack(req, data + hdr_len, recv_len,
+//                                                  0, 1);
+//            ucp_request_complete_tag_recv(req, status);
+            ucp_request_complete(req, recv.tag.cb, UCS_OK, &req->recv.tag.info);
+//        } else {
+//            eagerf_hdr                = data;
+//            req->recv.tag.info.length =
+//            req->recv.tag.remaining   = eagerf_hdr->total_len;
 
-            status = ucp_tag_request_process_recv_data(req, data + hdr_len,
-                                                       recv_len, 0, 0);
-            ucs_assert(status == UCS_INPROGRESS);
+//            status = ucp_tag_request_process_recv_data(req, data + hdr_len,
+//                                                       recv_len, 0, 0);
+//            ucs_assert(status == UCS_INPROGRESS);
 
-            ucp_tag_frag_list_process_queue(&worker->tm, req, eagerf_hdr->msg_id
-                                            UCS_STATS_ARG(UCP_WORKER_STAT_TAG_RX_EAGER_CHUNK_EXP));
-        }
+//            ucp_tag_frag_list_process_queue(&worker->tm, req, eagerf_hdr->msg_id
+//                                            UCS_STATS_ARG(UCP_WORKER_STAT_TAG_RX_EAGER_CHUNK_EXP));
+//        }
 
         status = UCS_OK;
     } else {

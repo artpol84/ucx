@@ -191,7 +191,8 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_recv_nb,
 
     req = ucp_request_get(worker);
     if (ucs_likely(req != NULL)) {
-        rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nb");
+        //rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nb");
+        rdesc = NULL;
         ucp_tag_recv_common(worker, buffer, count, datatype, tag, tag_mask, req,
                             UCP_REQUEST_FLAG_CALLBACK, cb, rdesc,"recv_nb");
         ret = req + 1;
