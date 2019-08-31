@@ -108,22 +108,22 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_recv_nb,
     ucs_status_ptr_t ret;
     ucp_request_t *req;
 
-    UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
-                                    return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
-    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
+//    UCP_CONTEXT_CHECK_FEATURE_FLAGS(worker->context, UCP_FEATURE_TAG,
+//                                    return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
+//    UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(worker);
 
     req = ucp_request_get(worker);
-    if (ucs_likely(req != NULL)) {
+//    if (ucs_likely(req != NULL)) {
         //rdesc = ucp_tag_unexp_search(&worker->tm, tag, tag_mask, 1, "recv_nb");
         rdesc = NULL;
         ucp_tag_recv_common(worker, buffer, count, datatype, tag, tag_mask, req,
                             UCP_REQUEST_FLAG_CALLBACK, cb, rdesc,"recv_nb");
         ret = req + 1;
-    } else {
-        ret = UCS_STATUS_PTR(UCS_ERR_NO_MEMORY);
-    }
+//    } else {
+//        ret = UCS_STATUS_PTR(UCS_ERR_NO_MEMORY);
+//    }
 
-    UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(worker);
+//    UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(worker);
     return ret;
 }
 
