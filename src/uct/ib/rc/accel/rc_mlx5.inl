@@ -266,7 +266,8 @@ uct_rc_mlx5_common_post_send(uct_rc_mlx5_iface_common_t *iface, int qp_type,
     ucs_assert(qp_type == iface->super.super.config.qp_type);
 
 #if HAVE_TL_DC
-    if (qp_type == UCT_IB_QPT_DCI) {
+    /* If av == NULL and qp_type is DC - we may be doing a NO-OP */
+    if (qp_type == UCT_IB_QPT_DCI && av != NULL) {
         uct_ib_mlx5_set_dgram_seg((void*)(ctrl + 1), av, grh_av, qp_type);
     }
 #endif
@@ -358,7 +359,14 @@ uct_rc_mlx5_txqp_inline_post(uct_rc_mlx5_iface_common_t *iface, int qp_type,
         inl              = uct_ib_mlx5_txwq_wrap_none(txwq, raddr + 1);
         inl->byte_count  = htonl(length | MLX5_INLINE_SEG);
         uct_ib_mlx5_inline_copy(inl + 1, buffer, length, txwq);
+#if 1
+        /* Perfor selective CQ moderation only for PUTs */
+        if( txqp->unsignaled >= 64){
+            fm_ce_se |= MLX5_WQE_CTRL_CQ_UPDATE;
+        }
+#else
         fm_ce_se        |= uct_rc_iface_tx_moderation(&iface->super, txqp, MLX5_WQE_CTRL_CQ_UPDATE);
+#endif
         break;
 
     case MLX5_OPCODE_NOP:

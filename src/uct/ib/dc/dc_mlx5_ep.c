@@ -266,6 +266,26 @@ uct_dc_mlx5_ep_am_short_inline(uct_ep_h tl_ep, uint8_t id, uint64_t hdr,
     return UCS_OK;
 }
 
+void uct_dc_mlx5_iface_flush_dci_ins_noop(uct_dc_mlx5_iface_t *iface, int dci)
+{
+    UCT_DC_MLX5_TXQP_DECL(txqp, txwq);
+    txqp = &(iface)->tx.dcis[dci].txqp;
+    txwq = &(iface)->tx.dci_wqs[dci];
+
+    if( txqp->available == 0) {
+        /* TX queue is full */
+        return;
+    }
+
+    uct_rc_mlx5_txqp_inline_post(&iface->super, UCT_IB_QPT_DCI,
+                                 txqp, txwq,
+                                 MLX5_OPCODE_NOP, NULL, 0,
+                                 0, 0, 0,
+                                 0, 0,
+                                 NULL, NULL, 0, 0,
+                                 INT_MAX);
+}
+
 #if HAVE_IBV_EXP_DM
 static ucs_status_t UCS_F_ALWAYS_INLINE
 uct_dc_mlx5_ep_short_dm(uct_dc_mlx5_ep_t *ep, uct_rc_mlx5_dm_copy_data_t *cache,

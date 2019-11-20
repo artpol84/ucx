@@ -283,6 +283,8 @@ uct_dc_mlx5_iface_dci_has_outstanding(uct_dc_mlx5_iface_t *iface, int dci)
     return uct_rc_txqp_available(txqp) < (int16_t)iface->super.super.config.tx_qp_len;
 }
 
+void uct_dc_mlx5_iface_flush_dci_ins_noop(uct_dc_mlx5_iface_t *iface, int dci);
+
 static inline ucs_status_t uct_dc_mlx5_iface_flush_dci(uct_dc_mlx5_iface_t *iface, int dci)
 {
 
@@ -292,8 +294,10 @@ static inline ucs_status_t uct_dc_mlx5_iface_flush_dci(uct_dc_mlx5_iface_t *ifac
     ucs_trace_poll("dci %d is not flushed %d/%d", dci,
                    iface->tx.dcis[dci].txqp.available,
                    iface->super.super.config.tx_qp_len);
-    ucs_assertv(uct_rc_txqp_unsignaled(&iface->tx.dcis[dci].txqp) == 0,
-                "unsignalled send is not supported!!!");
+    if( uct_rc_txqp_unsignaled(&iface->tx.dcis[dci].txqp)) {
+        /* Insert the noop to complete unsignalled operations */
+        uct_dc_mlx5_iface_flush_dci_ins_noop(iface, dci);
+    }
     return UCS_INPROGRESS;
 }
 
