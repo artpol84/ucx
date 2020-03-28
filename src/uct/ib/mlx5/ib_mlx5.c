@@ -321,7 +321,7 @@ void uct_ib_mlx5_check_completion(uct_ib_iface_t *iface, uct_ib_mlx5_cq_t *cq,
         ++cq->cq_ci;
         status = uct_ib_mlx5_completion_with_err(iface, (void*)cqe, NULL,
                                                  UCS_LOG_LEVEL_DEBUG);
-        iface->ops->handle_failure(iface, cqe, status);
+        //iface->ops->handle_failure(iface, cqe, status);
         return;
     case MLX5_CQE_RESP_ERR:
         /* Local side failure - treat as fatal */
