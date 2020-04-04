@@ -393,7 +393,7 @@ uct_ib_mlx5_exp_umr_alloc(uct_ib_mlx5_md_t *md, const uct_iov_t *iov,
     umr->comp.count   = 1; /* for async reg */
     umr->memh.umr     = umr;
     for(i=0; i<iov_count; i++){
-        uct_ib_mlx5_mem_t *ptr = ucs_derived_of(iov->memh, uct_ib_mlx5_mem_t);
+        uct_ib_mlx5_mem_t *ptr = ucs_derived_of(iov[i].memh, uct_ib_mlx5_mem_t);
         if( !ptr->umr ){
             umr->contig_memh = ptr;
             break;
