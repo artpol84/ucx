@@ -7,11 +7,13 @@
 #ifndef DT_STRUCT_H_
 #define DT_STRUCT_H_
 
+#include <ucp/core/ucp_context.h>
 #include <ucp/api/ucp.h>
 #include <ucs/datastruct/khash.h>
 #include <uct/api/uct.h>
 #include <ucp/core/ucp_types.h>
 #include <ucs/stats/stats.h>
+#include "dt_common.h"
 
 typedef struct ucp_dt_struct_hash_value {
     uct_md_h      md;
@@ -51,6 +53,7 @@ typedef struct ucp_dt_struct {
     size_t len, step_len, depth;
     size_t desc_count;
     size_t rep_count;
+    ucp_dt_reg_t contig_mem;
     size_t uct_iov_count; /* total count of needed UCT iovs for unfolded struct */
     size_t extent; /* total contig space covering the whole type */
     ptrdiff_t lb_displ; /* the lowest displacement from which extent is effective */
@@ -123,10 +126,11 @@ size_t ucp_dt_struct_scatter(void *dst, ucp_datatype_t dt, const void *src,
 ucs_status_t ucp_dt_struct_register_ep(ucp_ep_h ep, ucp_lane_index_t lane,
                                        void *buf, ucp_datatype_t dt, uct_mem_h
                                        contig_memh, uct_mem_h* memh,
-                                       ucp_md_map_t *md_map);
+                                       ucp_md_map_t *md_map_p);
 
-ucs_status_t ucp_dt_struct_register(uct_md_h md, void *buf, ucp_datatype_t dt,
-                                    uct_mem_h contig_memh, uct_mem_h* memh,
+ucs_status_t ucp_dt_struct_register(ucp_context_t *context, ucp_md_index_t md_idx,
+                                    void *buf, ucp_datatype_t dt,
+                                    uct_mem_h* memh,
                                     ucp_md_map_t *md_map_p);
 
 #endif // DT_STRUCT_H

@@ -18,6 +18,7 @@
 #include <ucs/sys/math.h>
 #include <uct/api/uct.h>
 #include <ucp/core/ucp_ep.inl>
+#include <ucp/core/ucp_mm.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -36,8 +37,9 @@ static ucs_stats_class_t ucp_dt_struct_stats_class = {
 ucs_status_t _struct_register_ep_rec(uct_ep_h ep, void *buf, ucp_dt_struct_t *s,
                                      uct_mem_h contig_memh, uct_mem_h* memh);
 
-ucs_status_t _struct_register_rec(uct_md_h md, void *buf, ucp_dt_struct_t *s,
-                                  uct_mem_h contig_memh, uct_mem_h* memh);
+ucs_status_t _struct_register_rec(ucp_context_t *context, ucp_md_index_t md_idx,
+                                  void *buf, ucp_dt_struct_t *s,
+                                  uct_mem_h* memh);
 
 static void _set_struct_attributes(ucp_dt_struct_t *s)
 {
@@ -473,13 +475,15 @@ ucs_status_t ucp_dt_struct_register_ep(ucp_ep_h ep, ucp_lane_index_t lane,
     return status;
 }
 
-static uct_iov_t* _fill_md_uct_iov_rec(uct_md_h md, void *buf, ucp_dt_struct_t *s,
-                                       uct_mem_h contig_memh, uct_iov_t *iovs)
+static uct_iov_t* _fill_md_uct_iov_rec(ucp_context_t *context, ucp_md_index_t md_idx,
+                                       void *buf, ucp_dt_struct_t *s,
+                                       uct_iov_t *iovs)
 {
     uct_iov_t *iov = iovs;
     ucp_dt_struct_t *s_in;
     ucs_status_t status;
     void *ptr, *eptr;
+    ucp_md_map_t md_map;
     int i;
 
     for (i = 0; i < s->desc_count; i++, iov++) {
@@ -488,13 +492,15 @@ static uct_iov_t* _fill_md_uct_iov_rec(uct_md_h md, void *buf, ucp_dt_struct_t *
         if (UCP_DT_IS_STRUCT(s->desc[i].dt)) {
             s_in = ucp_dt_struct(s->desc[i].dt);
             if (s_in->rep_count == 1) {
-                iov = _fill_md_uct_iov_rec(md, ptr, s_in, contig_memh, iov);
+                iov = _fill_md_uct_iov_rec(context, md_idx, ptr, s_in, iov);
             } else {
                 /* calculate effective offset */
                 iov->buffer = eptr;
                 iov->length = s_in->len;
                 iov->stride = s->desc[i].extent;
-                status = _struct_register_rec(md, ptr, s_in, contig_memh, &iov->memh);
+                status = ucp_dt_struct_register(context, md_idx, ptr,
+                                                s->desc[i].dt, &iov->memh,
+                                                &md_map);
                 ucs_assert_always(status == UCS_OK);
             }
         } else {
@@ -502,21 +508,23 @@ static uct_iov_t* _fill_md_uct_iov_rec(uct_md_h md, void *buf, ucp_dt_struct_t *
             iov->buffer = ptr;
             iov->length = ucp_contig_dt_length(s->desc[i].dt, 1);
             iov->stride = s->desc[i].extent;
-            iov->memh   = contig_memh;
+            iov->memh   = s->contig_mem.memh;
         }
     }
 
     return iov;
 }
 
-ucs_status_t _struct_register_rec(uct_md_h md, void *buf, ucp_dt_struct_t *s,
-                                  uct_mem_h contig_memh, uct_mem_h* memh)
+ucs_status_t _struct_register_rec(ucp_context_t *context, ucp_md_index_t md_idx,
+                                  void *buf, ucp_dt_struct_t *s,
+                                  uct_mem_h* memh)
 {
+    uct_md_h md = context->tl_mds[md_idx].md;
     size_t iov_cnt  = s->uct_iov_count;
     uct_iov_t *iovs = ucs_calloc(iov_cnt, sizeof(*iovs), "umr_iovs");
     ucs_status_t status;
 
-    _fill_md_uct_iov_rec(md, buf, s, contig_memh, iovs);
+    _fill_md_uct_iov_rec(context, md_idx, buf, s, iovs);
 
     status = uct_md_mem_reg_nc(md, iovs, iov_cnt, s->rep_count, &memh[0]);
     if (status != UCS_OK) {
@@ -531,20 +539,34 @@ ucs_status_t _struct_register_rec(uct_md_h md, void *buf, ucp_dt_struct_t *s,
     return UCS_OK;
 }
 
-ucs_status_t ucp_dt_struct_register(uct_md_h md, void *buf, ucp_datatype_t dt,
-                                    uct_mem_h contig_memh, uct_mem_h* memh,
+ucs_status_t ucp_dt_struct_register(ucp_context_t *context, ucp_md_index_t md_idx,
+                                    void *buf, ucp_datatype_t dt,
+                                    uct_mem_h* memh,
                                     ucp_md_map_t *md_map_p)
 {
     ucp_dt_struct_t *s = ucp_dt_struct(dt);
     ucs_status_t status;
+    uct_md_h md = context->tl_mds[md_idx].md;
 
     ucs_assert_always(UCP_DT_IS_STRUCT(dt));
+
+    /* register contig memory block covering the whole struct
+     * This will ensure that the memory wil not be invalidated
+     */
+
+    status = ucp_mem_rereg_mds(context, UCS_BIT(md_idx),
+                               buf + s->lb_displ,
+                               s->extent,
+                               UCT_MD_MEM_ACCESS_ALL, NULL,
+                               UCS_MEMORY_TYPE_HOST, NULL,
+                               s->contig_mem.memh,
+                               &s->contig_mem.md_map);
 
     printf("STRUCT reg: addr=%p, datatype=%p\n", buf, s);
 
     ucs_info("Register struct on md, dt %ld, len %ld", dt, s->len);
 
-    status = _struct_register_rec(md, buf, s, contig_memh, memh);
+    status = _struct_register_rec(context, md_idx, buf, s, memh);
     if (status == UCS_OK) {
         //*md_map_p = UCS_BIT(md_idx);
         _to_cache(s, buf, md, memh[0]);
