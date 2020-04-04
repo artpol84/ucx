@@ -9,6 +9,8 @@
 #include <ucs/arch/bitops.h>
 #include <ucs/profile/profile.h>
 
+#include <config.h>
+
 typedef struct uct_ib_umr uct_ib_umr_t;
 
 typedef struct {
@@ -363,6 +365,7 @@ uct_ib_mlx5_exp_umr_alloc(uct_ib_mlx5_md_t *md, const uct_iov_t *iov,
     uct_ib_umr_t *umr;
     ucs_status_t status;
     unsigned klms_needed, umr_depth;
+    int i;
 
     if (!IBV_EXP_HAVE_UMR(&md->super.dev.dev_attr)) {
         return UCS_ERR_UNSUPPORTED;
@@ -389,7 +392,17 @@ uct_ib_mlx5_exp_umr_alloc(uct_ib_mlx5_md_t *md, const uct_iov_t *iov,
     umr->iov_count    = iov_count;
     umr->comp.count   = 1; /* for async reg */
     umr->memh.umr     = umr;
-    umr->contig_memh  = ucs_derived_of(iov->memh, uct_ib_mlx5_mem_t); /* assume all iovs use the same memh for now */
+    for(i=0; i<iov_count; i++){
+        uct_ib_mlx5_mem_t *ptr = ucs_derived_of(iov->memh, uct_ib_mlx5_mem_t);
+        if( !ptr->umr ){
+            umr->contig_memh = ptr;
+            break;
+        }
+    }
+
+    if(!umr->contig_memh) {
+        ucs_fatal("Can't properly store the contig memh");
+    }
 
     if (repeat_count == 1) { /* MRs list */
         status = uct_ib_mlx5_exp_umr_fill_region(umr, iov, iov_count);
