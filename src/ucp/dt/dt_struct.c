@@ -566,7 +566,7 @@ ucs_status_t ucp_dt_struct_register(ucp_context_t *context, ucp_md_index_t md_id
         _to_cache(s, buf, &val);
 
     }
-    memh = val.noncontig.memh;
+    *memh = val.noncontig.memh[0];
 
     return status;
 }
