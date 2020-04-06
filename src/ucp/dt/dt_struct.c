@@ -313,7 +313,7 @@ void ucp_dt_destroy_struct(ucp_datatype_t datatype_p)
         uct_md_h md = val.ucp_ctx->tl_mds[val.md_idx].md;
         ucs_info("struct dt %p, dereg NC memh %p on md %p",
                  dt, val.noncontig.memh, md);
-        uct_md_mem_dereg_nc(md, val.noncontig.memh);
+        uct_md_mem_dereg_nc(md, val.noncontig.memh[0]);
         status = ucp_mem_rereg_mds(val.ucp_ctx, 0, NULL, 0, 0, NULL,
                                    UCS_MEMORY_TYPE_HOST, NULL,
                                    val.contig.memh, &val.contig.md_map);
