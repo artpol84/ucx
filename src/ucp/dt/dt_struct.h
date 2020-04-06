@@ -16,8 +16,10 @@
 #include "dt_common.h"
 
 typedef struct ucp_dt_struct_hash_value {
-    uct_md_h      md;
-    uct_mem_h     memh;
+    ucp_context_t *ucp_ctx;
+    ucp_md_index_t md_idx;
+    ucp_dt_reg_t contig;
+    ucp_dt_reg_t noncontig;
 } ucp_dt_struct_hash_value_t;
 
 KHASH_MAP_INIT_INT64(dt_struct, ucp_dt_struct_hash_value_t)
@@ -53,7 +55,6 @@ typedef struct ucp_dt_struct {
     size_t len, step_len, depth;
     size_t desc_count;
     size_t rep_count;
-    ucp_dt_reg_t contig_mem;
     size_t uct_iov_count; /* total count of needed UCT iovs for unfolded struct */
     size_t extent; /* total contig space covering the whole type */
     ptrdiff_t lb_displ; /* the lowest displacement from which extent is effective */
@@ -108,7 +109,7 @@ static UCS_F_ALWAYS_INLINE uct_mem_h ucp_dt_struct_in_cache(ucp_dt_struct_t *s,
     k = kh_get(dt_struct, &s->hash, (uint64_t)ptr);
 
     printf("STRUCT rcache req: addr=%p, datatype=%p\n", ptr, s);
-    return (k == kh_end(&s->hash)) ? NULL : kh_value(&s->hash, k).memh;
+    return (k == kh_end(&s->hash)) ? NULL : kh_value(&s->hash, k).noncontig.memh;
 }
 
 
