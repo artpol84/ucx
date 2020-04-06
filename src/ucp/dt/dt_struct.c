@@ -475,7 +475,7 @@ static uct_iov_t* _fill_md_uct_iov_rec(ucp_dt_struct_t *s,
     ucp_dt_struct_t *s_in;
     ucs_status_t status;
     void *ptr, *eptr;
-    ucp_md_map_t md_map;
+    ucp_md_map_t md_map = 0;
     int i;
 
     for (i = 0; i < s->desc_count; i++, iov++) {
@@ -500,7 +500,7 @@ static uct_iov_t* _fill_md_uct_iov_rec(ucp_dt_struct_t *s,
             iov->buffer = ptr;
             iov->length = ucp_contig_dt_length(s->desc[i].dt, 1);
             iov->stride = s->desc[i].extent;
-            iov->memh   = val->contig.memh;
+            iov->memh   = val->contig.memh[0];
         }
     }
 
@@ -547,6 +547,7 @@ ucs_status_t ucp_dt_struct_register(ucp_context_t *context, ucp_md_index_t md_id
      */
     val.ucp_ctx = context;
     val.md_idx = md_idx;
+    val.contig.md_map = 0;
     status = ucp_mem_rereg_mds(val.ucp_ctx, UCS_BIT(val.md_idx),
                                buf + s->lb_displ,
                                s->extent,
