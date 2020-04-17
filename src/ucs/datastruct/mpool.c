@@ -79,6 +79,7 @@ ucs_status_t ucs_mpool_init(ucs_mpool_t *mp, size_t priv_size,
 
     mp->debug = 0;
     mp->alloc_cnt = 0;
+    mp->max_size = 0;
 
     if (mp->data->name == NULL) {
         ucs_error("Failed to allocate memory pool data name");
@@ -106,7 +107,7 @@ void ucs_mpool_cleanup(ucs_mpool_t *mp, int leak_check)
 
     if(mp->debug) {
         char *ptr = getenv("PMIX_RANK");
-        printf("%s: %d\n", ptr, mp->alloc_cnt);
+        printf("%s: cnt=%d, max_size=%d\n", ptr, mp->alloc_cnt, mp->max_size);
     }
 
     /* Cleanup all elements in the freelist and set their header to NULL to mark

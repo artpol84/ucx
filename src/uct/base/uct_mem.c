@@ -354,6 +354,9 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_iface_mp_chunk_alloc, (mp, size_p, chunk_p),
 
     if(mp->debug) {
         mp->alloc_cnt++;
+        if(length > mp->max_size){
+            mp->max_size = length;
+        }
     }
 
     length = sizeof(*hdr) + *size_p;
