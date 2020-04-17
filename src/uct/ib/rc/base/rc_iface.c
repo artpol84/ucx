@@ -573,6 +573,9 @@ UCS_CLASS_INIT_FUNC(uct_rc_iface_t, uct_rc_iface_ops_t *ops, uct_md_h md,
     /* Create RX buffers mempool */
     status = uct_ib_iface_recv_mpool_init(&self->super, &config->super,
                                           "rc_recv_desc", &self->rx.mp);
+    /* Only debug RX */
+    self->rx.mp.debug = 1;
+
     if (status != UCS_OK) {
         goto err;
     }

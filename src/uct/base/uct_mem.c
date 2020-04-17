@@ -352,6 +352,10 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_iface_mp_chunk_alloc, (mp, size_p, chunk_p),
     ucs_status_t status;
     size_t length;
 
+    if(mp->debug) {
+        mp->alloc_cnt++;
+    }
+
     length = sizeof(*hdr) + *size_p;
     status = uct_iface_mem_alloc(&iface->super, length,
                                  UCT_MD_MEM_ACCESS_ALL | UCT_MD_MEM_FLAG_LOCK,

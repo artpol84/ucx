@@ -77,6 +77,9 @@ ucs_status_t ucs_mpool_init(ucs_mpool_t *mp, size_t priv_size,
     mp->data->ops             = ops;
     mp->data->name            = ucs_strdup(name, "mpool_data_name");
 
+    mp->debug = 0;
+    mp->alloc_cnt = 0;
+
     if (mp->data->name == NULL) {
         ucs_error("Failed to allocate memory pool data name");
         goto err_strdup;
@@ -100,6 +103,11 @@ void ucs_mpool_cleanup(ucs_mpool_t *mp, int leak_check)
     ucs_mpool_elem_t *elem, *next_elem;
     ucs_mpool_data_t *data = mp->data;
     void *obj;
+
+    if(mp->debug) {
+        char *ptr = getenv("PMIX_RANK");
+        printf("%s: %d\n", ptr, mp->alloc_cnt);
+    }
 
     /* Cleanup all elements in the freelist and set their header to NULL to mark
      * them as released for the leak check.
