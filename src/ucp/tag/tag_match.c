@@ -58,7 +58,7 @@ void ucp_tag_match_cleanup(ucp_tag_match_t *tm)
 {
     {
         char *ptr = getenv("PMIX_RANK");
-        printf("\t??? %d: max unexpected queue len = %d\n", ptr, tm->unexp_qlen_max);
+        printf("\t??? %s: max unexpected queue len = %d\n", ptr, tm->unexp_qlen_max);
     }
 
     kh_destroy_inplace(ucp_tag_offload_hash, &tm->offload.tag_hash);
