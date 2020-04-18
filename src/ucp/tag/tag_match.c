@@ -58,7 +58,13 @@ void ucp_tag_match_cleanup(ucp_tag_match_t *tm)
 {
     {
         char *ptr = getenv("PMIX_RANK");
-        printf("\t??? %s: max unexpected queue len = %d\n", ptr, tm->unexp_qlen_max);
+        char *dir = getenv("MY_TEST_DIR");
+        char fname[256];
+        sprintf(fname, "%s/tmstat_rank.%d.%s", dir, getpid(), ptr);
+
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "\t%s: max unexpected queue len = %d\n", ptr, tm->unexp_qlen_max);
+        fclose(fp);
     }
 
     kh_destroy_inplace(ucp_tag_offload_hash, &tm->offload.tag_hash);
