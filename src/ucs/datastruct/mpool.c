@@ -110,7 +110,7 @@ void ucs_mpool_cleanup(ucs_mpool_t *mp, int leak_check)
         char *ptr = getenv("PMIX_RANK");
         char *dir = getenv("MY_TEST_DIR");
         char fname[256];
-        sprintf(fname, "%s/mpoolstat_rank.%d", dir, ptr);
+        sprintf(fname, "%s/mpoolstat_rank.%s", dir, ptr);
         FILE *fp = fopen(fname, "w");
         fprintf(fp, "%s/%s: cnt=%d, max_size=%d\n", ptr, mp->data->name,
                 mp->alloc_cnt, (int)mp->max_size);
