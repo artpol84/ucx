@@ -367,7 +367,7 @@ typedef struct uct_iface_mpool_config {
 
 #define UCT_TL_IFACE_GET_RX_DESC(_iface, _mp, _desc, _failure) \
     { \
-        _desc = ucs_mpool_get_inline(_mp); \
+        _desc = ucs_mpool_get_inline_1(_mp); \
         if (ucs_unlikely((_desc) == NULL)) { \
             uct_iface_mpool_empty_warn(_iface, _mp); \
             _failure; \

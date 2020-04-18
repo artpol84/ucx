@@ -107,7 +107,8 @@ void ucs_mpool_cleanup(ucs_mpool_t *mp, int leak_check)
 
     if(mp->debug) {
         char *ptr = getenv("PMIX_RANK");
-        printf("%s: cnt=%d, max_size=%d\n", ptr, mp->alloc_cnt, (int)mp->max_size);
+        printf("%s/%s: cnt=%d, max_size=%d\n", ptr, mp->data->name,
+               mp->alloc_cnt, (int)mp->max_size);
     }
 
     /* Cleanup all elements in the freelist and set their header to NULL to mark
