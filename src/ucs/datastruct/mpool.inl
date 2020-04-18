@@ -12,6 +12,7 @@
 #include <ucs/config/global_opts.h>
 #include <ucs/sys/checker.h>
 #include <ucs/sys/sys.h>
+#include <ucs/sys/math.h>
 
 
 static inline void *ucs_mpool_get_inline(ucs_mpool_t *mp)
