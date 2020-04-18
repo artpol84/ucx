@@ -12,6 +12,7 @@
 #include <ucs/config/global_opts.h>
 #include <ucs/sys/checker.h>
 #include <ucs/sys/sys.h>
+#include <ucs/sys/math.h>
 
 
 static inline void *ucs_mpool_get_inline(ucs_mpool_t *mp)
@@ -34,6 +35,37 @@ static inline void *ucs_mpool_get_inline(ucs_mpool_t *mp)
     VALGRIND_MEMPOOL_ALLOC(mp, obj, mp->data->elem_size - sizeof(ucs_mpool_elem_t));
     return obj;
 }
+
+static inline void *ucs_mpool_get_inline_1(ucs_mpool_t *mp)
+{
+    ucs_mpool_elem_t *elem;
+    void *obj;
+
+    if (ucs_unlikely(mp->freelist == NULL)) {
+        ucs_mpool_data_t *data = mp->data;
+        int chunk_size = sizeof(ucs_mpool_chunk_t) + data->alignment +
+                     (data->elems_per_chunk *
+                      ucs_align_up_pow2(data->elem_size, data->alignment));
+
+        char *ptr = getenv("PMIX_RANK");
+        printf("\t!!!! %s/%s: GROW by %d, elems=%d, size=%d\n",
+               ptr, mp->data->name, chunk_size, data->elems_per_chunk ,
+               data->elem_size);
+        return ucs_mpool_get_grow(mp);
+    }
+
+    /* Disconnect an element from the pool */
+    elem = mp->freelist;
+    VALGRIND_MAKE_MEM_DEFINED(elem, sizeof *elem);
+    mp->freelist = elem->next;
+    elem->mpool = mp;
+    VALGRIND_MAKE_MEM_NOACCESS(elem, sizeof *elem);
+
+    obj = elem + 1;
+    VALGRIND_MEMPOOL_ALLOC(mp, obj, mp->data->elem_size - sizeof(ucs_mpool_elem_t));
+    return obj;
+}
+
 
 static inline void ucs_mpool_add_to_freelist(ucs_mpool_t *mp, ucs_mpool_elem_t *elem,
                                              int add_to_tail)
