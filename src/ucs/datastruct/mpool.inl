@@ -48,7 +48,9 @@ static inline void *ucs_mpool_get_inline_1(ucs_mpool_t *mp)
                       ucs_align_up_pow2(data->elem_size, data->alignment));
 
         char *ptr = getenv("PMIX_RANK");
-        printf("\t!!!! %s/%s: GROW by %d\n", ptr, mp->data->name, chunk_size);
+        printf("\t!!!! %s/%s: GROW by %d, elems=%d, size=%d\n",
+               ptr, mp->data->name, chunk_size, data->elems_per_chunk ,
+               data->elem_size);
         return ucs_mpool_get_grow(mp);
     }
 
