@@ -107,7 +107,6 @@ void ucs_mpool_cleanup(ucs_mpool_t *mp, int leak_check)
 
     if(mp->debug) {
         char *ptr = getenv("PMIX_RANK");
-        char *ptr = getenv("PMIX_RANK");
         char *dir = getenv("MY_TEST_DIR");
         char fname[256];
         sprintf(fname, "%s/mpoolstat_rank.%s", dir, ptr);
