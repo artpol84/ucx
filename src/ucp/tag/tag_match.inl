@@ -153,6 +153,11 @@ ucp_tag_unexp_recv(ucp_tag_match_t *tm, ucp_recv_desc_t *rdesc, ucp_tag_t tag)
     ucs_list_add_tail(hash_list,           &rdesc->tag_list[UCP_RDESC_HASH_LIST]);
     ucs_list_add_tail(&tm->unexpected.all, &rdesc->tag_list[UCP_RDESC_ALL_LIST]);
 
+    tm->unexp_qlen++;
+    if(tm->unexp_qlen_max < tm->unexp_qlen){
+        tm->unexp_qlen_max = tm->unexp_qlen;
+    }
+
     ucs_trace_req("unexp "UCP_RECV_DESC_FMT" tag %"PRIx64,
                   UCP_RECV_DESC_ARG(rdesc), tag);
 }
@@ -204,6 +209,7 @@ ucp_tag_unexp_search(ucp_tag_match_t *tm, ucp_tag_t tag, uint64_t tag_mask,
             if (remove) {
                 ucp_tag_unexp_remove(rdesc);
             }
+            tm->unexp_qlen--;
             return rdesc;
         }
 

@@ -60,6 +60,7 @@ KHASH_INIT(ucp_tag_frag_hash, uint64_t, ucp_tag_frag_match_t, 1,
  */
 typedef struct ucp_tag_match {
 
+
     /* Expected queue */
     struct {
         ucp_request_queue_t   wildcard;   /* Expected wildcard requests */
@@ -74,6 +75,7 @@ typedef struct ucp_tag_match {
         ucs_list_link_t       all;        /* Linked list of all tags */
         ucs_list_link_t       *hash;      /* Hash table of unexpected tags */
     } unexpected;
+    int unexp_qlen, unexp_qlen_max;
 
     /* Hash for fragment assembly, the key is a globally unique tag message id */
     khash_t(ucp_tag_frag_hash) frag_hash;
