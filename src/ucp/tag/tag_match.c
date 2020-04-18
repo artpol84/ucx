@@ -22,6 +22,8 @@ ucs_status_t ucp_tag_match_init(ucp_tag_match_t *tm)
     tm->expected.sw_all_count = 0;
     ucs_queue_head_init(&tm->expected.wildcard.queue);
     ucs_list_head_init(&tm->unexpected.all);
+    tm->unexp_qlen = 0;
+    tm->unexp_qlen_max = 0;
 
     tm->expected.hash = ucs_malloc(sizeof(*tm->expected.hash) * hash_size,
                                    "ucp_tm_exp_hash");
@@ -54,6 +56,11 @@ ucs_status_t ucp_tag_match_init(ucp_tag_match_t *tm)
 
 void ucp_tag_match_cleanup(ucp_tag_match_t *tm)
 {
+    {
+        char *ptr = getenv("PMIX_RANK");
+        printf("\t??? %s: max unexpected queue len = %d\n", ptr, tm->unexp_qlen_max);
+    }
+
     kh_destroy_inplace(ucp_tag_offload_hash, &tm->offload.tag_hash);
     kh_destroy_inplace(ucp_tag_frag_hash, &tm->frag_hash);
     ucs_free(tm->unexpected.hash);
