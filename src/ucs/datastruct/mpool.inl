@@ -41,8 +41,13 @@ static inline void *ucs_mpool_get_inline_1(ucs_mpool_t *mp)
     void *obj;
 
     if (ucs_unlikely(mp->freelist == NULL)) {
+        ucs_mpool_data_t *data = mp->data;
+        int chunk_size = sizeof(ucs_mpool_chunk_t) + data->alignment +
+                     (data->elems_per_chunk *
+                      ucs_align_up_pow2(data->elem_size, data->alignment));
+
         char *ptr = getenv("PMIX_RANK");
-        printf("\t!!!! %s: GROW", ptr);
+        printf("\t!!!! %s/%s: GROW by %d\n", ptr, mp->data->name, chunk_size);
         return ucs_mpool_get_grow(mp);
     }
 
