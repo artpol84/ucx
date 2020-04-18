@@ -64,7 +64,8 @@ struct ucs_mpool_chunk {
 struct ucs_mpool {
     ucs_mpool_elem_t       *freelist;  /* List of available elements */
     ucs_mpool_data_t       *data;      /* Slow-path data */
-    int debug, max_size;
+    int debug;
+    size_t max_size;
     int alloc_cnt;
 };
 
