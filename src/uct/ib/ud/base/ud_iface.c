@@ -483,6 +483,8 @@ UCS_CLASS_INIT_FUNC(uct_ud_iface_t, uct_ud_iface_ops_t *ops, uct_md_h md,
     if (status != UCS_OK) {
         goto err_qp;
     }
+    /* Only debug RX */
+    self->rx.mp.debug = 1;
 
     self->rx.available = ucs_min(config->ud_common.rx_queue_len_init,
                                  config->super.rx.queue_len);
