@@ -57,7 +57,6 @@ typedef struct {
     struct ibv_mr *mr;
 } uct_ib_umr_mr_pool_elem_t;
 
-#define UMR_MR_POOL_START_SIZE 512
 #define UMR_MR_POOL_GROW_SIZE 16
 
 static ucs_queue_head_t _umr_mr_pool;
@@ -92,7 +91,6 @@ static void _umr_mr_pool_grow(uct_ib_mlx5_md_t *md, int size)
 static void _umr_mr_pool_init(uct_ib_mlx5_md_t *md)
 {
     ucs_queue_head_init(&_umr_mr_pool);
-    _umr_mr_pool_grow(md, UMR_MR_POOL_START_SIZE);
 }
 
 static void _umr_mr_pool_cleanup()
