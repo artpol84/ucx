@@ -66,6 +66,7 @@ _alloc_umr_pool_elem(uct_ib_mlx5_md_t *md)
 {
     struct ibv_exp_create_mr_in mrin = {};
     struct ibv_exp_device_attr *dev_attr = &md->super.dev.dev_attr;
+    (void)dev_attr;
 
     /* Create indirect MR */
     mrin.pd                     = md->super.pd;
