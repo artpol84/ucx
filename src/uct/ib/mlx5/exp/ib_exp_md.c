@@ -71,7 +71,7 @@ _alloc_umr_pool_elem(uct_ib_mlx5_md_t *md)
     mrin.pd                     = md->super.pd;
     mrin.attr.create_flags      = IBV_EXP_MR_INDIRECT_KLMS;
     mrin.attr.exp_access_flags  = UCT_IB_MEM_ACCESS_FLAGS;
-    mrin.attr.max_klm_list_size = IBV_DEVICE_UMR_CAPS(dev_attr, max_klm_list_size);
+    mrin.attr.max_klm_list_size = 32; //IBV_DEVICE_UMR_CAPS(dev_attr, max_klm_list_size);
     return ibv_exp_create_mr(&mrin);
 }
 
