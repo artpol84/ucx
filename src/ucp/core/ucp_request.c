@@ -262,7 +262,8 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_request_memory_reg,
         break;
     case UCP_DATATYPE_STRUCT:
         s       = ucp_dt_struct(datatype);
-        nc_memh = ucp_dt_struct_in_cache(s, buffer);
+        //nc_memh = ucp_dt_struct_in_cache(s, buffer);
+        nc_memh = UCS_PROFILE_CALL(ucp_dt_struct_in_cache, s, buffer);
         if (ucs_likely(nc_memh != NULL)) {
             ucs_info("register dt struct %p buf %p, found in cache, memh %p",
                      s, buffer, nc_memh);
