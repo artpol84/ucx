@@ -76,7 +76,7 @@ _alloc_umr_pool_elem(uct_ib_mlx5_md_t *md)
     return ibv_exp_create_mr(&mrin);
 }
 
-static void _umr_mr_pool_grow(uct_ib_mlx5_md_t *md, int size)
+static int _umr_mr_pool_grow(uct_ib_mlx5_md_t *md, int size)
 {
     int i;
 
@@ -87,6 +87,7 @@ static void _umr_mr_pool_grow(uct_ib_mlx5_md_t *md, int size)
         elem->mr = _alloc_umr_pool_elem(md);
         ucs_queue_push(&_umr_mr_pool, &elem->super);
     }
+    return 0;
 }
 
 static void _umr_mr_pool_init(uct_ib_mlx5_md_t *md)
