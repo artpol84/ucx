@@ -112,7 +112,7 @@ _umr_mr_pool_get(uct_ib_mlx5_md_t *md)
     struct ibv_mr *ret = NULL;
 
     if(ucs_queue_is_empty(&_umr_mr_pool)) {
-        _umr_mr_pool_grow(md, grow_size);
+        UCS_PROFILE_CALL(_umr_mr_pool_grow, md, grow_size);
     }
 
     elem = (void*)ucs_queue_pull(&_umr_mr_pool);
@@ -557,7 +557,7 @@ uct_ib_mlx5_exp_umr_register(uct_ib_mlx5_md_t *md, uct_ib_mem_t *memh,
     umr->under_dbg = 0;
 
     /* Create indirect MR */
-    umr->memh.mr = _umr_mr_pool_get(md);
+    umr->memh.mr = UCS_PROFILE_CALL(_umr_mr_pool_get, md);
     if (!umr->memh.mr) {
         ucs_error("ibv_exp_create_mr() failed: %m");
         return UCS_ERR_NO_MEMORY;
@@ -758,12 +758,14 @@ static ucs_status_t uct_ib_mlx5_mem_reg_nc(uct_ib_md_t *ib_md, const uct_iov_t *
     ucs_info("reg NC on MD(%p): %p, iovs %ld, repeat %ld",
              md, iov[0].buffer, iovcnt, repeat_count);
 
-    status = uct_ib_mlx5_exp_umr_alloc(md, iov, iovcnt, repeat_count, &memh);
+//    status = uct_ib_mlx5_exp_umr_alloc(md, iov, iovcnt, repeat_count, &memh);
+    status = UCS_PROFILE_CALL(uct_ib_mlx5_exp_umr_alloc, md, iov, iovcnt, repeat_count, &memh);
     if (ucs_unlikely(status != UCS_OK)) {
         return status;
     }
 
-    status = uct_ib_mlx5_exp_umr_register(md, memh, md->umr_qp, md->umr_cq, 1);
+    //status = uct_ib_mlx5_exp_umr_register(md, memh, md->umr_qp, md->umr_cq, 1);
+    status = UCS_PROFILE_CALL(uct_ib_mlx5_exp_umr_register,md, memh, md->umr_qp, md->umr_cq, 1);
     if (ucs_unlikely(status != UCS_OK)) {
         return status;
     }

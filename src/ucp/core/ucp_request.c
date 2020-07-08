@@ -275,22 +275,22 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_request_memory_reg,
 
         md_idx = ucp_ep_md_index(req_dbg->send.ep, lane);
 
-        /* register contig memory block covering the whole struct */
-        status = ucp_mem_rereg_mds(context, UCS_BIT(md_idx),
-                                   buffer + s->lb_displ,
-                                   s->extent,
-                                   UCT_MD_MEM_ACCESS_ALL, NULL,
-                                   UCS_MEMORY_TYPE_HOST, NULL,
-                                   state->dt.struct_dt.contig.memh,
-                                   &state->dt.struct_dt.contig.md_map);
-        if (status != UCS_OK) {
-            ucs_error("failed to register contig space for struct dt: %s",
-                      ucs_status_string(status));
-            return status;
-        }
-        ucs_info("registered contig memh for %p struct, buf %p, len %ld, ext %ld memh %p repcnt %ld",
-                 s, buffer, s->len, s->extent, state->dt.struct_dt.contig.memh[0],
-                  s->rep_count);
+//        /* register contig memory block covering the whole struct */
+//        status = ucp_mem_rereg_mds(context, UCS_BIT(md_idx),
+//                                   buffer + s->lb_displ,
+//                                   s->extent,
+//                                   UCT_MD_MEM_ACCESS_ALL, NULL,
+//                                   UCS_MEMORY_TYPE_HOST, NULL,
+//                                   state->dt.struct_dt.contig.memh,
+//                                   &state->dt.struct_dt.contig.md_map);
+//        if (status != UCS_OK) {
+//            ucs_error("failed to register contig space for struct dt: %s",
+//                      ucs_status_string(status));
+//            return status;
+//        }
+//        ucs_info("registered contig memh for %p struct, buf %p, len %ld, ext %ld memh %p repcnt %ld",
+//                 s, buffer, s->len, s->extent, state->dt.struct_dt.contig.memh[0],
+//                  s->rep_count);
 
         /*
         status = ucp_dt_struct_register_ep(req_dbg->send.ep, lane, buffer, datatype,
