@@ -95,7 +95,7 @@ static void _umr_mr_pool_init(uct_ib_mlx5_md_t *md)
     ucs_queue_head_init(&_umr_mr_pool);
 }
 
-static void _umr_mr_pool_cleanup()
+static int _umr_mr_pool_cleanup()
 {
     uct_ib_umr_mr_pool_elem_t *elem;
     while(!ucs_queue_is_empty(&_umr_mr_pool)) {
@@ -103,6 +103,7 @@ static void _umr_mr_pool_cleanup()
         ibv_dereg_mr(elem->mr);
         free(elem);
     }
+    return 0;
 }
 
 static struct ibv_mr *
@@ -1284,7 +1285,7 @@ void uct_ib_mlx5_exp_md_cleanup(uct_ib_md_t *ibmd)
 #if HAVE_EXP_UMR
     uct_ib_mlx5_md_t *md = ucs_derived_of(ibmd, uct_ib_mlx5_md_t);
 
-    _umr_mr_pool_cleanup();
+    UCS_PROFILE_CALL(_umr_mr_pool_cleanup);
 
     if (md->umr_qp != NULL) {
         uct_ib_destroy_qp(md->umr_qp);
