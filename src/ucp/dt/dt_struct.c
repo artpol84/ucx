@@ -182,8 +182,10 @@ static size_t _dte_pack( const ucp_dt_struct_t *s,
     ptrdiff_t elem_offs = 0;
     ucp_dt_struct_t *sub_s;
 
+    //DEBUG(0);
+
     /* Seek for the offset */
-    elem_idx = _elem_by_offset(s, out_offs, &elem_offs_int, &elem_rep_num);
+    elem_idx = _elem_by_offset(s, out_offset_orig, &elem_offs_int, &elem_rep_num);
 
     while( (0 < len) && elem_rep_num < s->rep_count){
         ucp_struct_dt_desc_t *dsc = &s->desc[elem_idx];
@@ -634,6 +636,7 @@ ucs_status_t ucp_dt_struct_register(ucp_context_t *context, ucp_md_index_t md_id
 
     }
     *memh = val.noncontig.memh[0];
+    if (*memh) (*md_map_p)++;
 
     return status;
 }
