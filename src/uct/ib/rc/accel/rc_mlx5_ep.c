@@ -58,6 +58,7 @@ uct_rc_mlx5_ep_zcopy_post(uct_rc_mlx5_ep_t *ep,
     UCT_RC_CHECK_RES(&iface->super, &ep->super);
 
     sn = ep->tx.wq.sw_pi;
+
     uct_rc_mlx5_txqp_dptr_post_iov(iface, IBV_QPT_RC,
                                    &ep->super.txqp, &ep->tx.wq,
                                    opcode, iov, iovcnt,

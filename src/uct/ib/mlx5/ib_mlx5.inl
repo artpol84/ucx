@@ -351,6 +351,9 @@ unsigned uct_ib_mlx5_set_data_seg_iov(uct_ib_mlx5_txwq_t *txwq,
         dptr = uct_ib_mlx5_txwq_wrap_any(txwq, dptr);
         uct_ib_mlx5_set_data_seg(dptr, iov[iov_it].buffer, iov[iov_it].length,
                                  ((uct_ib_mem_t*)iov[iov_it].memh)->lkey);
+
+
+
         len += sizeof(*dptr);
         ++dptr;
     }
